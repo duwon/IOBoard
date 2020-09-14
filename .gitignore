@@ -41,6 +41,13 @@
 *.su
 *.idb
 *.pdb
+EWARM/settings/
+EWARM/IOBoard/
+MDK-ARM/RTE/
+MDK-ARM/IOBoard/
+MDK-ARM/DebugConfig/
+STM32CubeIDE/.settings/
+STM32CubeIDE/Debug/
 
 # Kernel Module Compile Results
 *.mod*
@@ -53,3 +60,7 @@ dkms.conf
 
 # Temp files
 .mxproject
+*.dep
+*.duwon
+*.lst
+
