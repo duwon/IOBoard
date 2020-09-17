@@ -30,6 +30,7 @@
 
 
 static uint32_t Time_1sec_Count = 0;
+uint32_t Raspberry_Timer, Restart_Timer;
 uint8_t		Reset_sw = 0;						// Reset switch 
 
 void Check_Todo (void);
@@ -58,41 +59,41 @@ Dasi:
     {
       Delay_1sec_Timer = Time_1sec_Count;
       HAL_IWDG_Refresh(&hiwdg);
-      Check_ToDo();
+      Check_Todo();
     }
     break;
   case 1: //----------------------------------------------<
-    Rs232_Proc();
+    //Rs232_Proc();
     break;
   case 2: //----------------------------------------------<
-    Rs485_Proc();
+    //Rs485_Proc();
     break;
   case 3: //----------------------------------------------< 디버그 포트
-    Console_Proc();
+    //Console_Proc();
     break;
   case 4: //----------------------------------------------< 라즈베리파이 통신
-    TTL_Proc();
+    //TTL_Proc();
     break;
   case 5: //----------------------------------------------< LoRa
-    LoRa_Proc();
+    //LoRa_Proc();
     break;
   case 6: //----------------------------------------------< DI
-    Di_Proc();
+    //Di_Proc();
     break;
   case 7: //----------------------------------------------< DO
-    Do_Proc();
+    //Do_Proc();
     break;
   case 8: //----------------------------------------------< AI
-    Ai_Proc();
+    //Ai_Proc();
     break;
   case 9: //----------------------------------------------< RTD 센서
-    Rtd_Proc();
+    //Rtd_Proc();
     break;
   case 10: //---------------------------------------------< 커런트 전류
-    Ct_Proc();
+    //Ct_Proc();
     break;
   case 11: //---------------------------------------------< 차압센서
-    Dp_Proc();
+    //Dp_Proc();
     break;
 
   default:
@@ -108,7 +109,7 @@ void Check_Todo (void)
 {
 static int8_t loop=0;
 
-	Set_RDY(Time_1sec_Count % 2);			// 1초 간격 브링크
+	//Set_RDY(Time_1sec_Count % 2);			// 1초 간격 브링크
 		
 	switch (loop++)
 		{
@@ -120,14 +121,14 @@ static int8_t loop=0;
 					break;
 				case 2 :						// 3 초 이상
 					Reset_sw = 0;
-					Factory_Cfg ();
+					//Factory_Cfg ();
 					break;
 				}
 			break;
 		case 1 : //------------------------------ Restart 
 			if (Restart_Timer)				
    				{
-	   			if (Restart_Timer < Time_1sec_Count) Restart ();
+	   			//if (Restart_Timer < Time_1sec_Count) Restart ();
 	   			}
 			break;
 			
