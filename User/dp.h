@@ -4,6 +4,6 @@
 #include "main.h"
 
 
-
+uint16_t DP_Read(void);
 
 #endif /* DP_H__ */

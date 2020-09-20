@@ -1,9 +1,10 @@
-/** 
- ******************************************************************************
+/**
+  ******************************************************************************
   * @file    user.c
   * @author  정두원
-  * @date    2020-09-14
-  * @brif    메인 구동 함수
+  * @date    2020-09-18
+  * @brief   메인 구동 함수
+  * @details
   */
 
 /**
@@ -14,23 +15,20 @@
     - IO Board  제어 API
   * @section  CREATEINFO      작성정보
     - 작성자      :   정두원
-    - 작성일      :   2020-09-14
+    - 작성일      :   2020-09-18
   * @section  MODIFYINFO      수정정보
-    - 2020-09-14    :    문서화
+    - 2020-09-18    :    프로젝트 셋팅
   */
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include "user.h"
-#include "tim.h"
+#include "timer.h"
 #include "util.h"
 #include "iwdg.h"
 
-
-static uint32_t Time_1sec_Count = 0;
-uint32_t Raspberry_Timer, Restart_Timer;
+uint32_t Time_1sec_Count, Raspberry_Timer, Restart_Timer;
 uint8_t		Reset_sw = 0;						// Reset switch 
 
 void Check_Todo (void);
@@ -44,7 +42,6 @@ void userStart(void)
 //----------------------------------------------------------------------------------
 void userLoop(void)
 {
-  uint32_t Delay_1sec_Timer;
   uint8_t looping = 0;
 
 Dasi:
@@ -55,9 +52,9 @@ Dasi:
   switch (looping++)
   {
   case 0: //---------------------------------------------< 1초 간격 처리
-    if (Delay_1sec_Timer == Time_1sec_Count)
+    if (flag_1SecTimerOn == true)
     {
-      Delay_1sec_Timer = Time_1sec_Count;
+      flag_1SecTimerOn = false;
       HAL_IWDG_Refresh(&hiwdg);
       Check_Todo();
     }

@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    timer.c
   * @author  정두원
-  * @date    2020-04-10
+  * @date    2020-09-18
   * @brief   타이머 제어
   * @details
 
@@ -12,22 +12,30 @@
 #include "tim.h"
 
 /**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM1 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
+  * @brief 1초 Flag
+  */
+bool flag_1SecTimerOn = false; /* 1초 Flag */
+
+/**
+  * @brief  Timer 인터럽트 함수. 이 함수는 HAL_TIM_IRQHandler() 내부에서 TIM6, TIM7 인터럽트가 발생했을 때 호출됨.
+  * @note   TIM6 - 1ms Timer, TIM7 - 0.1ms Timer
+  * 
   * @param  htim : TIM handle
-  * @retval None
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if (htim->Instance == TIM6)
+  static uint32_t count_1s = 0;
+  if (htim->Instance == TIM6) /* 1ms */
   {
-    HAL_IncTick();
+    count_1s++;
+    if( count_1s > 1000)
+    {
+      flag_1SecTimerOn = true;
+    }
   }
-  if (htim->Instance == TIM6)
+  if (htim->Instance == TIM7) /* 0.1ms */
   {
-    HAL_IncTick();
+  
   }
 }
 

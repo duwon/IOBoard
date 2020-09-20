@@ -4,6 +4,6 @@
 #include "main.h"
 
 
-
+int8_t RTD_Read(void);
 
 #endif /* RTD_H__ */

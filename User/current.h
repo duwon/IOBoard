@@ -3,7 +3,7 @@
 
 #include "main.h"
 
-
+float Current_Read(int8_t No);
 
 
 #endif /* CURRENT_H__ */

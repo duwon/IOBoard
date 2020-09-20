@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    uart.c
   * @author  정두원
-  * @date    2020-04-10
+  * @date    2020-09-18
   * @brief   UART 제어
   * @details
 
@@ -31,16 +31,19 @@ PUTCHAR_PROTOTYPE
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 
-  if (huart->Instance == USART3)
-  { /* RS485 */
+  if (huart->Instance == USART1)
+  { /* RS232 */
     //putByteToBuffer(&uart3Buffer, uart3Buffer.ch);
     //HAL_UART_Receive_IT(huart, (uint8_t *)&uart3Buffer.ch, 1);
   }
-  if (huart->Instance == USART1)
-  { /* Debug */
+  if (huart->Instance == USART2)
+  { /* RS485 */
     //putByteToBuffer(&uart1Buffer, uart1Buffer.ch);
     //HAL_UART_Receive_DMA(huart, (uint8_t *)&uart1Buffer.ch, 1);
   }
+	if( huart->Instance == UART4)
+	{ /* Raspberry Pi */
+	}
 }
 
 /**

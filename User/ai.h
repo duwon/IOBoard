@@ -4,6 +4,7 @@
 #include "main.h"
 
 
-
+void Ai_Init(void);
+float AI_Read(int8_t No);
 
 #endif /* AI_H__ */
