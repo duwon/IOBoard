@@ -35,9 +35,9 @@ const uint16_t DO_PIN[DOPORTn] = {DO1_Pin, DO2_Pin};
 /**
  * @brief Digital Output 포트에 값을 출력
  * 
- * @param No : 포트 번호
+ * @param No: 포트 번호
  *          @arg 0, 1
- * @param Value : 출력 값
+ * @param Value: 출력 값
  *          @arg 0 : OFF, 1 : ON
  */
 void DO_Write(int8_t No, int8_t Value)
@@ -51,7 +51,7 @@ void DO_Write(int8_t No, int8_t Value)
 /**
  * @brief 4개의 Digital Input 포트의 상태 읽기
  * 
- * @return uint8_t : 포트 상태 값 : 0-OFF, 1-ON
+ * @return uint8_t: 포트 상태 값 : 0-OFF, 1-ON
  *          [3:0] : [Port4, Port3, Port2, Port1]
  */
 uint8_t DI_Read(void)

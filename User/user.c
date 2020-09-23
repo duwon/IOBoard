@@ -27,19 +27,28 @@
 #include "timer.h"
 #include "util.h"
 #include "iwdg.h"
+#include "tim.h"
 
 uint32_t Time_1sec_Count, Raspberry_Timer, Restart_Timer;
 uint8_t		Reset_sw = 0;						// Reset switch 
 
 void Check_Todo (void);
 
+/**
+ * @brief 사용자 시작 함수 - 시작시 1회 수행
+ * 
+ */
 void userStart(void)
 {
-
-
+  RTC_Load(); /* RTC IC와 내부 RTC에 동기화 */
+  HAL_TIM_Base_Start_IT(&htim6); /* 1ms 타이머 인터럽트 시작 */
+  HAL_TIM_Base_Start_IT(&htim7); /* 0.1ms 타이머 인터럽트 시작 */
 }
 
-//----------------------------------------------------------------------------------
+/**
+ * @brief 사용자 Loop 함수 
+ * 
+ */
 void userLoop(void)
 {
   uint8_t looping = 0;
