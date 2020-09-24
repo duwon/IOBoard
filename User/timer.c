@@ -38,6 +38,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
 }
 
+/**
+ * @brief 
+ * 
+ */
+void Timer_Init(void)
+{
+  HAL_TIM_Base_Start_IT(&htim6); /* 1ms 타이머 인터럽트 시작 */
+  HAL_TIM_Base_Start_IT(&htim7); /* 0.1ms 타이머 인터럽트 시작 */
+}
+
 /** @defgroup DIO Digital Input/Output 제어 함수
   * @brief Digital I/O 제어
   * @{
@@ -60,7 +70,7 @@ void RTC_Load(void)
   RTC_TimeTypeDef sTime;
   RTC_DateTypeDef sDate;
   uint8_t I2CTxData[1] = {0x00U};
-  uint8_t I2CRxData[6];
+  uint8_t I2CRxData[7];
 
   HAL_I2C_Master_Transmit(&hi2c2, RTC_I2C_ADDRESS, I2CTxData, 1, 0xFFU); /* 주소번지 0 전송 */
   HAL_I2C_Master_Receive(&hi2c2, RTC_I2C_ADDRESS, I2CRxData, sizeof(I2CRxData), 0xFFU); /* 6바이트 읽음 */
@@ -89,7 +99,7 @@ void RTC_Set(RTC_DateTypeDef sDate, RTC_TimeTypeDef sTime, uint32_t Format)
 {
   RTC_TimeTypeDef sTempTime;
   RTC_DateTypeDef sTempDate;
-  uint8_t I2CTxData[7];
+  uint8_t I2CTxData[8];
 
   HAL_RTC_SetTime(&hrtc, &sTime, Format);
   HAL_RTC_SetDate(&hrtc, &sDate, Format);
@@ -112,4 +122,3 @@ void RTC_Set(RTC_DateTypeDef sDate, RTC_TimeTypeDef sTime, uint32_t Format)
 /**
   * @}
   */ 
- 

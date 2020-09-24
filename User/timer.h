@@ -6,6 +6,7 @@
 
 extern bool flag_1SecTimerOn;
 
+void Timer_Init(void);
 void RTC_Load(void);
 void RTC_Set(RTC_DateTypeDef sDate, RTC_TimeTypeDef sTime, uint32_t Format);
 
