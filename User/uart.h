@@ -11,7 +11,8 @@ typedef struct
   uint16_t out;
   uint16_t count;
   uint8_t buff[UART_BUFFER_SIZE];
-  uint8_t ch;
+  uint8_t chBuffer;
+  uint8_t chGet;
 } uartFIFO_TypeDef; /*!< 수신 패킷 저장 버퍼 구조체 */
 
 void Uart_Init(void); /*!< UART 관련 설정 초기화 */

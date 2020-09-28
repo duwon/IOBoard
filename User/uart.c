@@ -45,9 +45,9 @@ void Uart_Init(void)
   initBuffer(&uart1Buffer);
   initBuffer(&uart2Buffer);
   initBuffer(&uart4Buffer);
-  (void)HAL_UART_Receive_DMA(&huart1, (uint8_t *)&uart1Buffer.ch, 1U);
-  (void)HAL_UART_Receive_DMA(&huart2, (uint8_t *)&uart2Buffer.ch, 1U);
-  (void)HAL_UART_Receive_DMA(&huart4, (uint8_t *)&uart4Buffer.ch, 1U);
+  (void)HAL_UART_Receive_DMA(&huart1, (uint8_t *)&uart1Buffer.chBuffer, 1U);
+  (void)HAL_UART_Receive_DMA(&huart2, (uint8_t *)&uart2Buffer.chBuffer, 1U);
+  (void)HAL_UART_Receive_DMA(&huart4, (uint8_t *)&uart4Buffer.chBuffer, 1U);
 }
 
 /**
@@ -60,18 +60,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
   if (huart->Instance == USART1) /* RS232 */
   {
-    (void)putByteToBuffer(&uart1Buffer, uart1Buffer.ch);
-    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart1Buffer.ch, 1U);
+    (void)putByteToBuffer(&uart1Buffer, uart1Buffer.chBuffer);
+    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart1Buffer.chBuffer, 1U);
   }
   if (huart->Instance == USART2) /* RS485 */
   {
-    (void)putByteToBuffer(&uart2Buffer, uart2Buffer.ch);
-    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart2Buffer.ch, 1U);
+    (void)putByteToBuffer(&uart2Buffer, uart2Buffer.chBuffer);
+    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart2Buffer.chBuffer, 1U);
   }
   if (huart->Instance == UART4) /* Raspberry Pi */
   {
-    (void)putByteToBuffer(&uart4Buffer, uart4Buffer.ch);
-    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart4Buffer.ch, 1U);
+    (void)putByteToBuffer(&uart4Buffer, uart4Buffer.chBuffer);
+    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart4Buffer.chBuffer, 1U);
   }
 }
 
