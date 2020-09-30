@@ -75,11 +75,11 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
   /* USER CODE BEGIN I2C1_MspInit 0 */
 
   /* USER CODE END I2C1_MspInit 0 */
-  
+
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    /**I2C1 GPIO Configuration    
+    /**I2C1 GPIO Configuration
     PB6     ------> I2C1_SCL
-    PB7     ------> I2C1_SDA 
+    PB7     ------> I2C1_SDA
     */
     GPIO_InitStruct.Pin = RTC_SCK_Pin|RTC_SDA_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
@@ -97,11 +97,11 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
   /* USER CODE BEGIN I2C2_MspInit 0 */
 
   /* USER CODE END I2C2_MspInit 0 */
-  
+
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    /**I2C2 GPIO Configuration    
+    /**I2C2 GPIO Configuration
     PB10     ------> I2C2_SCL
-    PB11     ------> I2C2_SDA 
+    PB11     ------> I2C2_SDA
     */
     GPIO_InitStruct.Pin = PSENSOR_SCL_Pin|PSENSOR_SDA_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
@@ -126,12 +126,14 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
   /* USER CODE END I2C1_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_I2C1_CLK_DISABLE();
-  
-    /**I2C1 GPIO Configuration    
+
+    /**I2C1 GPIO Configuration
     PB6     ------> I2C1_SCL
-    PB7     ------> I2C1_SDA 
+    PB7     ------> I2C1_SDA
     */
-    HAL_GPIO_DeInit(GPIOB, RTC_SCK_Pin|RTC_SDA_Pin);
+    HAL_GPIO_DeInit(RTC_SCK_GPIO_Port, RTC_SCK_Pin);
+
+    HAL_GPIO_DeInit(RTC_SDA_GPIO_Port, RTC_SDA_Pin);
 
   /* USER CODE BEGIN I2C1_MspDeInit 1 */
 
@@ -144,18 +146,20 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
   /* USER CODE END I2C2_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_I2C2_CLK_DISABLE();
-  
-    /**I2C2 GPIO Configuration    
+
+    /**I2C2 GPIO Configuration
     PB10     ------> I2C2_SCL
-    PB11     ------> I2C2_SDA 
+    PB11     ------> I2C2_SDA
     */
-    HAL_GPIO_DeInit(GPIOB, PSENSOR_SCL_Pin|PSENSOR_SDA_Pin);
+    HAL_GPIO_DeInit(PSENSOR_SCL_GPIO_Port, PSENSOR_SCL_Pin);
+
+    HAL_GPIO_DeInit(PSENSOR_SDA_GPIO_Port, PSENSOR_SDA_Pin);
 
   /* USER CODE BEGIN I2C2_MspDeInit 1 */
 
   /* USER CODE END I2C2_MspDeInit 1 */
   }
-} 
+}
 
 /* USER CODE BEGIN 1 */
 

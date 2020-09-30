@@ -44,7 +44,7 @@ void DO_Write(int8_t No, int8_t Value)
 {
   if(No < DOPORTn)
   {
-    HAL_GPIO_WritePin(DO_PORT[No], DO_PIN[No], (Value == 0) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(DO_PORT[No], DO_PIN[No], (Value == 0U) ? GPIO_PIN_RESET : GPIO_PIN_SET);
   }
 }
 
