@@ -7,6 +7,7 @@
 #define ADC_SAMPLE_1S_COUNT 100U /*!< Timer8(1초) 이벤트 동안 ADC 샘플 갯수 */
 #define ADC_SAMPLE_COUNT (ADC_SAMPLE_1S_COUNT * ADC_COUNT) /*!< 샘플링 갯수 */
 
+
 typedef enum 
 {
   DAC_NORMAL = 0,
@@ -18,5 +19,6 @@ typedef enum
 void AI_Init(void);
 void AO_Init(void);
 float AI_Read(int8_t No);
+void AIN_TIM_PeriodElapsedCallback(void);
 
 #endif /* AIO_H__ */

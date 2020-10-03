@@ -12,6 +12,7 @@
 #include "tim.h"
 #include "rtc.h"
 #include "i2c.h"
+#include "aio.h"
 
 bool flag_1SecTimerOn = false; /*!< 1초 Flag */
 
@@ -32,9 +33,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       flag_1SecTimerOn = true;
     }
   }
-  if (htim->Instance == TIM7) /* 0.1ms */
+  if (htim->Instance == TIM7) /* 0.1ms - AI 인터럽트 호출*/
   {
-  
+    AIN_TIM_PeriodElapsedCallback();
   }
 }
 
