@@ -30,6 +30,7 @@
 		<nature>com.st.stm32cube.ide.mcu.MCURootProjectNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
+		<nature>com.st.stm32cube.ide.mcu.MCUCubeIdeServicesRevAev2ProjectNature</nature>
 	</natures>
 	<linkedResources>
 		<link>
@@ -38,9 +39,114 @@
 			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/IOBoard.ioc</locationURI>
 		</link>
 		<link>
-			<name>Application/User/adc.c</name>
+			<name>User/aio.c</name>
 			<type>1</type>
-			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/Core/Src/adc.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/User/aio.c</locationURI>
+		</link>
+		<link>
+			<name>User/aio.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/aio.h</locationURI>
+		</link>
+		<link>
+			<name>User/current.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/current.c</locationURI>
+		</link>
+		<link>
+			<name>User/current.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/current.h</locationURI>
+		</link>
+		<link>
+			<name>User/dio.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/dio.c</locationURI>
+		</link>
+		<link>
+			<name>User/dio.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/dio.h</locationURI>
+		</link>
+		<link>
+			<name>User/dp.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/dp.c</locationURI>
+		</link>
+		<link>
+			<name>User/dp.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/dp.h</locationURI>
+		</link>
+		<link>
+			<name>User/flash.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/flash.c</locationURI>
+		</link>
+		<link>
+			<name>User/flash.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/flash.h</locationURI>
+		</link>
+		<link>
+			<name>User/led.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/led.c</locationURI>
+		</link>
+		<link>
+			<name>User/led.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/led.h</locationURI>
+		</link>
+		<link>
+			<name>User/rtd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/rtd.c</locationURI>
+		</link>
+		<link>
+			<name>User/rtd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/rtd.h</locationURI>
+		</link>
+		<link>
+			<name>User/timer.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/timer.c</locationURI>
+		</link>
+		<link>
+			<name>User/timer.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/timer.h</locationURI>
+		</link>
+		<link>
+			<name>User/uart.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/uart.c</locationURI>
+		</link>
+		<link>
+			<name>User/uart.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/uart.h</locationURI>
+		</link>
+		<link>
+			<name>User/user.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/user.c</locationURI>
+		</link>
+		<link>
+			<name>User/user.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/user.h</locationURI>
+		</link>
+		<link>
+			<name>User/util.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/util.c</locationURI>
+		</link>
+		<link>
+			<name>User/util.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/User/util.h</locationURI>
 		</link>
 		<link>
 			<name>Application/User/dma.c</name>
@@ -106,16 +212,6 @@
 			<name>Drivers/STM32F1xx_HAL_Driver/stm32f1xx_hal.c</name>
 			<type>1</type>
 			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c</locationURI>
-		</link>
-		<link>
-			<name>Drivers/STM32F1xx_HAL_Driver/stm32f1xx_hal_adc.c</name>
-			<type>1</type>
-			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_adc.c</locationURI>
-		</link>
-		<link>
-			<name>Drivers/STM32F1xx_HAL_Driver/stm32f1xx_hal_adc_ex.c</name>
-			<type>1</type>
-			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_adc_ex.c</locationURI>
 		</link>
 		<link>
 			<name>Drivers/STM32F1xx_HAL_Driver/stm32f1xx_hal_cortex.c</name>
