@@ -5,9 +5,12 @@
 
 
 extern bool flag_1SecTimerOn;
+extern bool flag_1mSecTimerOn;
+extern bool flag_100uSecTimerOn;
 
 void Timer_Init(void);
 void RTC_Load(void);
-void RTC_Set(RTC_DateTypeDef sDate, RTC_TimeTypeDef sTime, uint32_t Format);
+void RTC_Get(uint8_t *pTime);
+void RTC_Set(uint8_t *pTime);
 
 #endif /* TIMER_H__ */

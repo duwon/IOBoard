@@ -14,7 +14,9 @@
 #include "i2c.h"
 #include "aio.h"
 
-bool flag_1SecTimerOn = false; /*!< 1초 Flag */
+bool flag_1SecTimerOn = false; /*!< 1s Flag */
+bool flag_1mSecTimerOn = false; /*!< 1ms Flag */
+bool flag_100uSecTimerOn = false; /*!< 100us Flag */
 
 /**
   * @brief  Timer 인터럽트 함수. 이 함수는 HAL_TIM_IRQHandler() 내부에서 TIM6, TIM7 인터럽트가 발생했을 때 호출됨.
@@ -31,11 +33,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if( count_1s > 1000)
     {
       flag_1SecTimerOn = true;
+      count_1s = 0;
     }
+
+    flag_1mSecTimerOn = true;
   }
   if (htim->Instance == TIM7) /* 0.1ms - AI 인터럽트 호출*/
   {
-    AIN_TIM_PeriodElapsedCallback();
+    flag_100uSecTimerOn = true;
   }
 }
 
@@ -88,26 +93,50 @@ void RTC_Load(void)
 }
 
 /**
- * @brief RTC에 시간 저장
+ * @brief 시간 얻기
  * 
- * @param sDate: RTC_DateTypeDef 구조체
- * @param sTime: RTC_TimeTypeDef 구조체
- * @param Format: sDate, sTime 구조체의 포맷.
- *            @arg RTC_FORMAT_BIN: Binary data format
- *            @arg RTC_FORMAT_BCD: BCD data format
+ * @return uint8_t*: RTC_FORMAT_BIN 포맷의 포인터 [0:5] Y:M:D:H:M:M
  */
-void RTC_Set(RTC_DateTypeDef sDate, RTC_TimeTypeDef sTime, uint32_t Format)
+void RTC_Get(uint8_t *pTime)
 {
   RTC_TimeTypeDef sTempTime;
   RTC_DateTypeDef sTempDate;
-  uint8_t I2CTxData[8];
 
-  HAL_RTC_SetTime(&hrtc, &sTime, Format);
-  HAL_RTC_SetDate(&hrtc, &sDate, Format);
+  HAL_RTC_GetTime(&hrtc, &sTempTime, RTC_FORMAT_BIN);
+  HAL_RTC_GetDate(&hrtc, &sTempDate, RTC_FORMAT_BIN);
+
+  pTime[5] = sTempTime.Seconds ;
+  pTime[4] = sTempTime.Minutes ;
+  pTime[3] = sTempTime.Hours ;
+  pTime[2] = sTempDate.Date ;
+  pTime[1] = sTempDate.Month ;
+  pTime[0] = sTempDate.Year ;
+}
+
+/**
+ * @brief RTC에 시간 저장
+ * 
+ * @param pTime: RTC_FORMAT_BIN 포맷 포인터 [0:5] Y:M:D:H:M:M
+ */
+void RTC_Set(uint8_t *pTime)
+{
+  RTC_TimeTypeDef sTempTime;
+  RTC_DateTypeDef sTempDate;
+
+  sTempTime.Seconds = pTime[5];
+  sTempTime.Minutes = pTime[4];
+  sTempTime.Hours = pTime[3];
+  sTempDate.Date = pTime[2];
+  sTempDate.Month = pTime[1];
+  sTempDate.Year = pTime[0];
+
+  HAL_RTC_SetTime(&hrtc, &sTempTime, RTC_FORMAT_BIN);
+  HAL_RTC_SetDate(&hrtc, &sTempDate, RTC_FORMAT_BIN);
 
   HAL_RTC_GetTime(&hrtc, &sTempTime, RTC_FORMAT_BCD);
   HAL_RTC_GetDate(&hrtc, &sTempDate, RTC_FORMAT_BCD);
 
+  uint8_t I2CTxData[8] = {0,};
   I2CTxData[0] = 0x00U; /* Register Address */
   I2CTxData[1] = sTempTime.Seconds;
   I2CTxData[2] = sTempTime.Minutes;

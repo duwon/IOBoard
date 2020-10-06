@@ -23,17 +23,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "iwdg.h"
+#include "tim.h"
+
 #include "user.h"
 #include "timer.h"
 #include "util.h"
-#include "iwdg.h"
-#include "tim.h"
 #include "uart.h"
+#include "aio.h"
 
 uint32_t Time_1sec_Count, Raspberry_Timer, Restart_Timer;
 uint8_t		Reset_sw = 0;						// Reset switch 
 
+void user1msLoop(void);
 void Check_Todo (void);
+
+void RasPI_Proc(void);
 
 /**
  * @brief 사용자 시작 함수 - 시작시 1회 수행
@@ -44,21 +49,38 @@ void userStart(void)
   RTC_Load(); /* RTC IC와 내부 RTC에 동기화 */
   Uart_Init();
   Timer_Init();
+
+  //initMessage(&uart4Message, TTL_Proc);
 }
 
 /**
- * @brief 사용자 Loop 함수 
+ * @brief 사용자 Loop 함수
  * 
  */
 void userLoop(void)
 {
-  uint8_t looping = 0;
+  procMesssage(&uart4Message, &uart4Buffer);
+  if(flag_100uSecTimerOn == true)
+  {
+    flag_100uSecTimerOn = false;
+    AIN_TIM_PeriodElapsedCallback();
+  }
+  if(flag_1mSecTimerOn == true)
+  {
+    flag_1mSecTimerOn = false;
+    user1msLoop();
+  }
+}
 
-Dasi:
+/**
+ * @brief 1ms 간격 수행 사용자 Loop 함수
+ * 
+ */
+void user1msLoop(void)
+{
+  static uint8_t looping = 0;
 
-  ADN_msleep(1);
 
-  //--------------------- 각 case 문의 함수는 대략 10msec 마다 한번씩 수행되도록  팬딩없이 바로 리턴하는 구조로 작성해야함
   switch (looping++)
   {
   case 0: //---------------------------------------------< 1초 간격 처리
@@ -79,7 +101,7 @@ Dasi:
     //Console_Proc();
     break;
   case 4: //----------------------------------------------< 라즈베리파이 통신
-    //TTL_Proc();
+    RasPI_Proc();
     break;
   case 5: //----------------------------------------------< LoRa
     //LoRa_Proc();
@@ -108,7 +130,6 @@ Dasi:
     break;
   }
 
-  goto Dasi;
 }
 
 //-----------------------------------------------------------------------------------------
@@ -148,4 +169,46 @@ static int8_t loop=0;
 				Raspberry_Timer = Time_1sec_Count + 3600;		// 1시간 설정
 				}
 		}
+}
+
+void RasPI_Proc(void)
+{
+  if (uart4Message.nextStage == PARSING)
+  {
+    uint8_t txData[MESSAGE_MAX_SIZE] = {
+        0,
+    };
+    
+    switch (uart4Message.msgID)
+    {
+    case MSGCMD_REQUEST_TIME:
+      RTC_Get(txData);
+      sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6);
+      printf("MSGCMD_REQUEST_TIME\r\n");
+      break;
+    case MSGCMD_UPDATE_CONFIG:
+      printf("MSGCMD_UPDATE_CONFIG\r\n");
+      break;
+    case MSGCMD_REQUEST_CONFIG:
+      printf("MSGCMD_REQUEST_CONFIG\r\n");
+      break;
+    case MSGCMD_UPDATE_TIME:
+      RTC_Set(uart4Message.data);
+      printf("MSGCMD_UPDATE_TIME\r\n");
+      break;
+    case MSGCMD_UPDATE_FW:
+      printf("MSGCMD_UPDATE_FW\r\n");
+      break;
+    case MSGCMD_UPDATE_WATEMETER_CAL:
+      printf("MSGCMD_UPDATE_WATEMETER_CAL\r\n");
+      break;
+    case MSGCMD_REQUEST_WATMETER_VAL:
+      printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
+      break;
+    default:
+      printf("MSG ERROR\r\n");
+      break;
+    }
+    uart4Message.nextStage = START;
+  }
 }
