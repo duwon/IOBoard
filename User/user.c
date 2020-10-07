@@ -31,6 +31,7 @@
 #include "util.h"
 #include "uart.h"
 #include "aio.h"
+#include "flash.h"
 
 uint32_t Time_1sec_Count, Raspberry_Timer, Restart_Timer;
 uint8_t		Reset_sw = 0;						// Reset switch 
@@ -178,7 +179,7 @@ void RasPI_Proc(void)
     uint8_t txData[MESSAGE_MAX_SIZE] = {
         0,
     };
-    
+
     switch (uart4Message.msgID)
     {
     case MSGCMD_REQUEST_TIME:
@@ -197,7 +198,8 @@ void RasPI_Proc(void)
       printf("MSGCMD_UPDATE_TIME\r\n");
       break;
     case MSGCMD_UPDATE_FW:
-      printf("MSGCMD_UPDATE_FW\r\n");
+      procFirmwareUpdate(uart4Message.data);
+      //printf("MSGCMD_UPDATE_FW\r\n");
       break;
     case MSGCMD_UPDATE_WATEMETER_CAL:
       printf("MSGCMD_UPDATE_WATEMETER_CAL\r\n");

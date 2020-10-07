@@ -12,17 +12,20 @@
 #include "flash.h"
 #include "stm32f1xx_hal_flash.h"
 
+#include "uart.h"
+
 /** @defgroup FLASH FLASH 제어 함수
   * @brief FLASH 제어
   * @{
   */
 
-#define FLASH_FW_ADDRESS_START 0x08020000U                                                   /*!< 펌웨어 시작 주소 */
+#define FLASH_FW_ADDRESS_START 0x08010000U                                                   /*!< 펌웨어 시작 주소 */
 #define FLASH_FW_PAGE_START (((FLASH_FW_ADDRESS_START - 0x08000000U) / FLASH_PAGE_SIZE) - 1) /*!< 펌웨어 시작 페이지 */
 #define FLASH_FW_PAGE_END 126U                                                               /*!< 펌웨어 끝 페이지 */
 #define FLASH_USER_PAGE 127U                                                                 /*!< 사용자 페이지 */
 
 static void Flash_UserErase(void);
+static ErrorStatus Flash_FwWrite(uint16_t flashNo, uint32_t *flashData);
 
 /**
  * @brief 펌웨어 저장 영역 삭제
@@ -67,23 +70,25 @@ static void Flash_UserErase(void)
 /**
  * @brief 펌웨어 영역에 쓰기 함수 Flash_FwErase() 함수 먼저 호출 후 사용.
  * 
- * @param flashData: 256Byte 펌웨어 데이터
- * @param flashPage: 256Byte 단위 펌웨어 순번. 0부터 시작
+ * @param flashData: 192Byte 펌웨어 데이터
+ * @param flashNo: 192Byte 단위 펌웨어 순번. 0부터 시작
+ * @return ErrorStatus: ERROR or SUCCESS
  */
-void Flash_FwWrite(uint32_t *flashData, uint32_t flashPage)
+static ErrorStatus Flash_FwWrite(uint16_t flashNo, uint32_t *flashData)
 {
-  uint32_t Address = 0x08000000 + (FLASH_FW_PAGE_START * FLASH_PAGE_SIZE) + (flashPage * 256);
+  uint32_t Address = FLASH_FW_ADDRESS_START + (flashNo * 192);
 
   HAL_FLASH_Unlock();
-  for (int8_t flashAddrIndex = 0; flashAddrIndex < 64; flashAddrIndex++)
+  for (int8_t flashAddrIndex = 0; flashAddrIndex < 48; flashAddrIndex++)
   {
     if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, flashData[flashAddrIndex]) != HAL_OK)
     {
-      /* Write Error */
-      /* while (1); */
+      return ERROR;
     }
     Address += 4; /* 32bit 단위 쓰기임으로 주소 4byte 증가 */
   }
+
+  return SUCCESS;
 }
 
 /**
@@ -158,6 +163,22 @@ void Flash_UserWrite4Byte(uint32_t flashWriteData, uint32_t addressIndex)
       }
       Address += 4; /* 32bit 단위 쓰기임으로 주소 4byte 증가 */
     }
+  }
+}
+
+void procFirmwareUpdate(uint8_t *firmwareData)
+{
+  //static uint16_t firmNumLast = 0;
+
+  uint16_t firmNum = (firmwareData[0] << 8) + firmwareData[1];
+
+  if (Flash_FwWrite(firmNum, (uint32_t *)&firmwareData[2]) == SUCCESS)
+  {
+    sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
+  }
+  else
+  {
+    /* error 처리 */
   }
 }
 
