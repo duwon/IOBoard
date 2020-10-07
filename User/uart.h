@@ -60,12 +60,12 @@ typedef struct
 } message_TypeDef; /*!< 수신 메시지 구조체 */
 
 /* Extern variables ---------------------------------------------------------*/
-uartFIFO_TypeDef uart1Buffer; /*!< UART1 링 버퍼 구조체 - RS232 */
-uartFIFO_TypeDef uart2Buffer; /*!< UART2 링 버퍼 구조체 - RS485 */
-uartFIFO_TypeDef uart4Buffer; /*!< UART4 링 버퍼 구조체 - Raspberry Pi */
+extern uartFIFO_TypeDef uart1Buffer; /*!< UART1 링 버퍼 구조체 - RS232 */
+extern uartFIFO_TypeDef uart2Buffer; /*!< UART2 링 버퍼 구조체 - RS485 */
+extern uartFIFO_TypeDef uart4Buffer; /*!< UART4 링 버퍼 구조체 - Raspberry Pi */
 
-message_TypeDef uart2Message; /*!< UART2 메시지 구조체 - RS485 */
-message_TypeDef uart4Message; /*!< UART4 메시지 구조체- Raspberry Pi */
+extern message_TypeDef uart2Message; /*!< UART2 메시지 구조체 - RS485 */
+extern message_TypeDef uart4Message; /*!< UART4 메시지 구조체- Raspberry Pi */
 
 /* Extern functions ---------------------------------------------------------*/
 void Uart_Init(void); /*!< UART 관련 설정 초기화 */

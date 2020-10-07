@@ -22,6 +22,12 @@
 
 
 /* Private variables ---------------------------------------------------------*/
+uartFIFO_TypeDef uart1Buffer; /*!< UART1 링 버퍼 구조체 - RS232 */
+uartFIFO_TypeDef uart2Buffer; /*!< UART2 링 버퍼 구조체 - RS485 */
+uartFIFO_TypeDef uart4Buffer; /*!< UART4 링 버퍼 구조체 - Raspberry Pi */
+
+message_TypeDef uart2Message; /*!< UART2 메시지 구조체 - RS485 */
+message_TypeDef uart4Message; /*!< UART4 메시지 구조체- Raspberry Pi */
 
 
 /* Private functions ---------------------------------------------------------*/

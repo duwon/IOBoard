@@ -31,6 +31,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "user.h"
+#include "flash.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -87,7 +88,11 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+#ifdef COMPILE_BOOTLOADER
+  MX_UART4_Init();
+  bootloader();
+#else
+  SCB->VTOR = FLASH_APPLECATION_ADDRESS_START;
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -118,6 +123,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
   }
+#endif
   /* USER CODE END 3 */
 }
 

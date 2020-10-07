@@ -19,11 +19,6 @@
   * @{
   */
 
-#define FLASH_FW_ADDRESS_START 0x08010000U                                                   /*!< 펌웨어 시작 주소 */
-#define FLASH_FW_PAGE_START (((FLASH_FW_ADDRESS_START - 0x08000000U) / FLASH_PAGE_SIZE) - 1) /*!< 펌웨어 시작 페이지 */
-#define FLASH_FW_PAGE_END 126U                                                               /*!< 펌웨어 끝 페이지 */
-#define FLASH_USER_PAGE 127U                                                                 /*!< 사용자 페이지 */
-
 static void Flash_UserErase(void);
 static ErrorStatus Flash_FwWrite(uint16_t flashNo, uint32_t *flashData);
 
@@ -180,6 +175,78 @@ void procFirmwareUpdate(uint8_t *firmwareData)
   {
     /* error 처리 */
   }
+}
+
+/*****************************************부트로더 코드 ********************************************/
+#include <stdio.h>
+#include "iwdg.h"
+typedef void (*pFunction)(void);
+
+ErrorStatus updateFirmware(void)
+{
+  HAL_IWDG_Refresh(&hiwdg);
+
+  /* 어플리케이션 영역 삭제 */
+  printf("App Erase.\r\n");
+  FLASH_EraseInitTypeDef EraseInitStruct;
+  EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;                                                            /* PAGE 단위 지우기 */
+  EraseInitStruct.PageAddress = FLASH_APPLECATION_ADDRESS_START;                                                /* 삭제 할 시작주소 */
+  EraseInitStruct.NbPages = ((FLASH_FW_ADDRESS_START - FLASH_APPLECATION_ADDRESS_START) / FLASH_PAGE_SIZE) - 1; /* 삭제 할 페이지 수 */
+
+  HAL_FLASH_Unlock();
+  uint32_t PageError = 0; /*!< 0xFFFFFFFF 값이면 정상 삭제됨 */
+  if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+  {
+    /* Erase Error */
+    printf("Erase Error.\r\n");
+    return ERROR;
+  }
+  HAL_IWDG_Refresh(&hiwdg);
+  
+  /* 복사 */
+  printf("Fw Copy.\r\n");
+  uint32_t Address_Application = FLASH_APPLECATION_ADDRESS_START;
+  uint32_t Address_Fiwmare = FLASH_FW_ADDRESS_START;
+
+  for (uint32_t flashAddrIndex = 0; flashAddrIndex < ((FLASH_FW_ADDRESS_START - FLASH_APPLECATION_ADDRESS_START) / 4); flashAddrIndex++)
+  {
+    if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address_Application, *(__IO uint32_t *)Address_Fiwmare) != HAL_OK)
+    {
+      /* error 처리 */
+      printf("Write Error.\r\n");
+      return ERROR;
+    }
+    Address_Application += 4;
+    Address_Fiwmare += 4;
+    HAL_IWDG_Refresh(&hiwdg);
+  }
+
+  printf("Update Completed.\r\n");
+  return SUCCESS;
+}
+
+void bootloader(void)
+{
+  pFunction JumpToApplication;
+
+  printf("\r\n\r\nSTART BOOTLOADER\r\n");
+  uint32_t mspValue = *(__IO uint32_t *)FLASH_FW_ADDRESS_START;
+  printf("MSP : %#010X\r\n", (unsigned int)mspValue);
+  if (mspValue != 0xFFFFFFFF)
+  {
+    if (updateFirmware() == SUCCESS)
+    {
+      Flash_FwErase();
+      printf("Fw Erase.\r\n");
+    }
+  }
+
+  /* 어플리케이션 포인터 함수 */
+  uint32_t JumpAddress = *(__IO uint32_t *)(FLASH_APPLECATION_ADDRESS_START + 4U);
+  JumpToApplication = (pFunction)JumpAddress;
+  /* 어플리케이션 스택포인터 설정*/
+  __set_MSP(*(__IO uint32_t *)FLASH_APPLECATION_ADDRESS_START);
+  JumpToApplication();
 }
 
 /**
