@@ -33,13 +33,21 @@ _estack = ORIGIN(RAM) + LENGTH(RAM);	/* end of "RAM" Ram type memory */
 _Min_Heap_Size = 0x200 ;	/* required amount of heap  */
 _Min_Stack_Size = 0x400 ;	/* required amount of stack */
 
+/* Bootloader memory
+  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 48K
+  FLASH   (rx)    : ORIGIN = 0x8000000,	   LENGTH = 24K
+*/
+/* Application memory
+  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 48K
+  BOOT    (rx)    : ORIGIN = 0x8000000,	   LENGTH = 24K
+  FLASH   (rx)    : ORIGIN = 0x8006000,    LENGTH = 100K
+  FW      (rx)    : ORIGIN = 0x801F000,    LENGTH = 100K
+*/
 /* Memories definition */
 MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 48K
-  BOOT    (rx)    : ORIGIN = 0x8000000,	   LENGTH = 20K
-  FLASH   (rx)    : ORIGIN = 0x8005000,    LENGTH = 100K
-  FW      (rx)    : ORIGIN = 0x801E000,    LENGTH = 100K
+  FLASH   (rx)    : ORIGIN = 0x8000000,	   LENGTH = 24K
 }
 
 /* Sections */

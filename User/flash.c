@@ -180,6 +180,8 @@ void procFirmwareUpdate(uint8_t *firmwareData)
 /*****************************************부트로더 코드 ********************************************/
 #include <stdio.h>
 #include "iwdg.h"
+#include "rtc.h"
+
 typedef void (*pFunction)(void);
 
 ErrorStatus updateFirmware(void)
@@ -202,7 +204,7 @@ ErrorStatus updateFirmware(void)
     return ERROR;
   }
   HAL_IWDG_Refresh(&hiwdg);
-  
+
   /* 복사 */
   printf("Fw Copy.\r\n");
   uint32_t Address_Application = FLASH_APPLECATION_ADDRESS_START;
@@ -225,22 +227,60 @@ ErrorStatus updateFirmware(void)
   return SUCCESS;
 }
 
+void receivedFirmware(void)
+{
+	switch (uart4Message.msgID)
+	{
+	case MSGCMD_UPDATE_FW:
+		procFirmwareUpdate(uart4Message.data);
+		break;
+	default:
+		printf("MSG ERROR\r\n");
+	    NVIC_SystemReset();
+		break;
+	}
+}
+
+
 void bootloader(void)
 {
-  pFunction JumpToApplication;
-
   printf("\r\n\r\nSTART BOOTLOADER\r\n");
+
+
+  Uart_Init();
+  initMessage(&uart4Message, receivedFirmware);
+
+  uint16_t restartCount = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
+  printf("RESET Count : %0x\r\n", restartCount++);
+  HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, restartCount);
+
+
+  if(restartCount > 10)
+  {
+	  printf("Application booting Fail\r\n");
+	  HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0);
+	  while(1)
+	  {
+		  procMesssage(&uart4Message, &uart4Buffer);
+		  HAL_IWDG_Refresh(&hiwdg);
+	  }
+  }
+
+
   uint32_t mspValue = *(__IO uint32_t *)FLASH_FW_ADDRESS_START;
   printf("MSP : %#010X\r\n", (unsigned int)mspValue);
   if (mspValue != 0xFFFFFFFF)
   {
     if (updateFirmware() == SUCCESS)
     {
+      HAL_IWDG_Refresh(&hiwdg);
       Flash_FwErase();
+      HAL_IWDG_Refresh(&hiwdg);
       printf("Fw Erase.\r\n");
     }
   }
 
+  pFunction JumpToApplication;
   /* 어플리케이션 포인터 함수 */
   uint32_t JumpAddress = *(__IO uint32_t *)(FLASH_APPLECATION_ADDRESS_START + 4U);
   JumpToApplication = (pFunction)JumpAddress;

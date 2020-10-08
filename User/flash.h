@@ -3,11 +3,11 @@
 
 #include "main.h"
 
-/* #define COMPILE_BOOTLOADER */ /*!< 부트로더 컴파일용 */
+#define COMPILE_BOOTLOADER  /*!< 부트로더 컴파일용 */
 
 #define FLASH_BOOT_ADDRESS_START 0x08000000U                                                              /*!< 부트로더 시작 주소 */
-#define FLASH_APPLECATION_ADDRESS_START 0x08005000U                                                       /*!< 어플리케이션 펌웨어 시작 주소 */
-#define FLASH_FW_ADDRESS_START 0x801E000U                                                                 /*!< 업데이트 펌웨어 시작 주소 */
+#define FLASH_APPLECATION_ADDRESS_START 0x08006000U                                                       /*!< 어플리케이션 펌웨어 시작 주소 */
+#define FLASH_FW_ADDRESS_START 0x801F000U                                                                 /*!< 업데이트 펌웨어 시작 주소 */
 #define FLASH_FW_PAGE_START (((FLASH_FW_ADDRESS_START - FLASH_BOOT_ADDRESS_START) / FLASH_PAGE_SIZE) - 1) /*!< 업데이트 펌웨어 시작 페이지 */
 #define FLASH_FW_PAGE_END 110U                                                                            /*!< 업데이트 펌웨어 끝 페이지 */
 #define FLASH_USER_PAGE 127U                                                                              /*!< 사용자 페이지 */
