@@ -39,6 +39,7 @@ uint8_t		Reset_sw = 0;						// Reset switch
 void user1msLoop(void);
 void Check_Todo (void);
 
+void setDefaultConfig(void);
 void RasPI_Proc(void);
 
 /**
@@ -172,8 +173,26 @@ static int8_t loop=0;
 		}
 }
 
+void setDefaultConfig(void)
+{
+  stIOConfig.Do[0] = 0;       // 디폴트 설정값  0=Off
+  stIOConfig.Do[1] = 0;       // 디폴트 설정값  0=Off
+  stIOConfig.Rtd_Cycle = 10;  // 측정주기 sec	  초기값 10
+  stIOConfig.Ai_Cycle = 1;    // 측정주기 sec   초기값 1
+  stIOConfig.Di_Cycle = 1;    // 측정주기 sec   초기값 1
+  stIOConfig.Dps_Cycle = 1;   // 측정주기 sec   초기값 1
+  stIOConfig.Ps_Cycle = 1;    // 측정주기 sec   초기값 1
+  stIOConfig.Pm_Mode = 1;     // 전산적력 측정 방식 0=3상, 1=단상
+  stIOConfig.Pm_Cycle = 60;   // 측정주기 sec   초기값 60
+  stIOConfig.Pm_Volt = 220;   // 파워메터 기준진압                 초기값 220
+  stIOConfig.Pm_Current = 50; // 파워메터 기전전류  100 -> 10.0 A  초기값 50
+  stIOConfig.Pm_Freq = 60;    // 파워메터 기준주파수               초기값 60
+}
+
 void RasPI_Proc(void)
 {
+  static bool flag_receiveFWImage = false;
+
   if (uart4Message.nextStage == PARSING)
   {
     uint8_t txData[MESSAGE_MAX_SIZE] = {
@@ -183,23 +202,26 @@ void RasPI_Proc(void)
     switch (uart4Message.msgID)
     {
     case MSGCMD_REQUEST_TIME:
+      //printf("MSGCMD_REQUEST_TIME\r\n");
       RTC_Get(txData);
       sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6);
-      printf("MSGCMD_REQUEST_TIME\r\n");
       break;
     case MSGCMD_UPDATE_CONFIG:
       printf("MSGCMD_UPDATE_CONFIG\r\n");
       break;
     case MSGCMD_REQUEST_CONFIG:
-      printf("MSGCMD_REQUEST_CONFIG\r\n");
+      //printf("MSGCMD_REQUEST_CONFIG\r\n");
+      setDefaultConfig();
+      sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_UPDATE_TIME:
       RTC_Set(uart4Message.data);
       printf("MSGCMD_UPDATE_TIME\r\n");
       break;
     case MSGCMD_UPDATE_FW:
-      procFirmwareUpdate(uart4Message.data);
       //printf("MSGCMD_UPDATE_FW\r\n");
+      flag_receiveFWImage = true;
+      procFirmwareUpdate(uart4Message.data);
       break;
     case MSGCMD_UPDATE_WATEMETER_CAL:
       printf("MSGCMD_UPDATE_WATEMETER_CAL\r\n");
@@ -207,10 +229,22 @@ void RasPI_Proc(void)
     case MSGCMD_REQUEST_WATMETER_VAL:
       printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
       break;
+    case MSGCMD_SET_DO:
+      printf("MSGCMD_SET_DO\r\n");
+      break;
+    case 0x99:
+      NVIC_SystemReset();
+      break;
     default:
       printf("MSG ERROR\r\n");
       break;
     }
     uart4Message.nextStage = START;
+  }
+
+  if((flag_sendStatusTimerOn == true) && (flag_receiveFWImage == false))
+  {
+	  flag_sendStatusTimerOn = false;
+	  sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
   }
 }

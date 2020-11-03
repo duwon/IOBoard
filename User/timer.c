@@ -17,7 +17,7 @@
 bool flag_1SecTimerOn = false; /*!< 1s Flag */
 bool flag_1mSecTimerOn = false; /*!< 1ms Flag */
 bool flag_100uSecTimerOn = false; /*!< 100us Flag */
-
+bool flag_sendStatusTimerOn = false; /*< 1초 마다 상태 전송 Flag */
 /**
   * @brief  Timer 인터럽트 함수. 이 함수는 HAL_TIM_IRQHandler() 내부에서 TIM6, TIM7 인터럽트가 발생했을 때 호출됨.
   * @note   TIM6 - 1ms Timer, TIM7 - 0.1ms Timer
@@ -27,6 +27,8 @@ bool flag_100uSecTimerOn = false; /*!< 100us Flag */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   static uint32_t count_1s = 0;
+  static uint32_t count_sendStatus = 0;
+
   if (htim->Instance == TIM6) /* 1ms */
   {
     count_1s++;
@@ -34,6 +36,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
       flag_1SecTimerOn = true;
       count_1s = 0;
+    }
+
+    count_sendStatus++;
+    if(count_sendStatus > SEND_STATUS_INTERVAL)
+    {
+      flag_sendStatusTimerOn = true;
+      count_sendStatus = 0;
     }
 
     flag_1mSecTimerOn = true;
