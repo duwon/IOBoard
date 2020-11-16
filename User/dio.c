@@ -22,9 +22,13 @@
 GPIO_TypeDef *DI_PORT[DIPORTn] = {DI1_GPIO_Port, DI2_GPIO_Port, DI3_GPIO_Port, DI4_GPIO_Port};
 const uint16_t DI_PIN[DIPORTn] = {DI1_Pin, DI2_Pin, DI3_Pin, DI4_Pin};
 
-#define DOPORTn 2 /*!< digital output 포트 갯수 */
-GPIO_TypeDef *DO_PORT[DOPORTn] = {DO1_GPIO_Port, DO2_GPIO_Port};
+#define DOPORTn 2                                                /*!< digital output 포트 갯수 */
+GPIO_TypeDef *DO_PORT[DOPORTn] = {DO1_GPIO_Port, DO2_GPIO_Port}; /* DO 포트 */
 const uint16_t DO_PIN[DOPORTn] = {DO1_Pin, DO2_Pin};
+
+GPIO_TypeDef *LD_DO_PORT[DOPORTn] = {LD_DO1_GPIO_Port, LD_DO2_GPIO_Port}; /* LED DO 포트 */
+const uint16_t LD_DO_PIN[DOPORTn] = {LD_DO1_Pin, LD_DO2_Pin};
+
 /**
   * @}
   */
@@ -42,6 +46,7 @@ void DO_Write(int8_t No, int8_t Value)
   if (No < DOPORTn)
   {
     HAL_GPIO_WritePin(DO_PORT[No], DO_PIN[No], (Value == 0U) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LD_DO_PORT[No], LD_DO_PIN[No], (Value == 0U) ? GPIO_PIN_RESET : GPIO_PIN_SET);
   }
 }
 

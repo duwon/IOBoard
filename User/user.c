@@ -8,7 +8,7 @@
   */
 
 /**
-  * @mainpage IO Board 
+  * @mainpage IO Board
     @section intro 소개
     - IO Board 
   * @section info 정보
@@ -34,15 +34,55 @@
 #include "flash.h"
 #include "dio.h"
 
-uint32_t Time_1sec_Count, Raspberry_Timer, Restart_Timer;
-uint8_t Reset_sw = 0; // Reset switch
+#pragma pack(push, 1) /* 1바이트 크기로 정렬  */
+typedef struct
+{
+  uint8_t Do[2];      // 디폴트 설정값  0=Off
+  uint8_t Rtd_Cycle;  // 측정주기 sec	  초기값 10
+  uint8_t Ai_Cycle;   // 측정주기 sec   초기값 1
+  uint8_t Di_Cycle;   // 측정주기 sec   초기값 1
+  uint8_t Dps_Cycle;  // 측정주기 sec   초기값 1
+  uint8_t Ps_Cycle;   // 측정주기 sec   초기값 1
+  uint8_t Pm_Mode;    // 전산적력 측정 방식 0=3상, 1=단상
+  uint8_t Pm_Cycle;   // 측정주기 sec   초기값 60
+  uint16_t Pm_Volt;   // 파워메터 기준진압                 초기값 220
+  uint8_t Pm_Current; // 파워메터 기전전류  100 -> 10.0 A  초기값 50
+  uint8_t Pm_Freq;    // 파워메터 기준주파수               초기값 60
+} Io_Config_TypeDef;
+#pragma pack(pop)
 
-void user1msLoop(void);
-void Check_Todo(void);
+typedef struct
+{
+  //-------------------------------- PowerMeter
+  float Volt;          // 전압
+  float Current;       // 전류
+  float Cos;           // 역률
+  float Active;        // 유효전력
+  float Reactive;      // 무효전력
+  float Apparent;      // 피상전력
+  float Active_Energy; // 유효전력량
 
-void setDefaultConfig(void);
-void RasPI_Proc(void);
-void Di_Proc(void);
+  //-------------------------------- Odd I/O 상태값
+  uint16_t Rtd;   // MSB=정수, LSB=소수점
+  uint16_t Dps;   // MSB=정수, LSB=소수점  차압센서
+  uint16_t Ps;    // MSB=정수, LSB=소수점  압력센서
+  uint16_t Ai[2]; // MSB=정수, LSB=소수점
+  uint8_t Di[4];  // 0=Off, 1=On
+  uint8_t Do[2];  // 0=Off, 1=On
+} Io_Status_TyeDef;
+
+static Io_Config_TypeDef stIOConfig;
+static Io_Status_TyeDef stIOStatus;
+
+static uint32_t Time_1sec_Count, Raspberry_Timer, Restart_Timer;
+static uint8_t Reset_sw = 0; // Reset switch
+
+static void user1msLoop(void);
+static void Check_Todo(void);
+
+static void setDefaultConfig(void);
+static void RasPI_Proc(void);
+static void Di_Proc(void);
 
 /**
  * @brief 사용자 시작 함수 - 시작시 1회 수행
@@ -50,10 +90,18 @@ void Di_Proc(void);
  */
 void userStart(void)
 {
-  RTC_Load(); /* RTC IC와 내부 RTC에 동기화 */
-  Uart_Init();
-  Timer_Init();
+#ifdef DEBUG
+  printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
+#endif
+  RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
+  Uart_Init();  /* UART 통신 시작 */
+  Timer_Init(); /* 타이머 시작 */
 
+  memcpy(&stIOConfig, (unsigned char *)FLASH_SYSTEM_CONFIG_ADDRESS, sizeof(stIOConfig)); /*  IO보드 설정값 불러 오기 */
+  if ((stIOConfig.Pm_Freq == 0) || stIOConfig.Pm_Freq == 255)
+  {
+    setDefaultConfig();
+  }
   //initMessage(&uart4Message, TTL_Proc);
 }
 
@@ -63,13 +111,15 @@ void userStart(void)
  */
 void userLoop(void)
 {
-  procMesssage(&uart4Message, &uart4Buffer);
-  if (flag_100uSecTimerOn == true)
+  procMesssage(&uart4Message, &uart4Buffer); /* 라즈베리파이(UART4) 메시지 처리 */
+
+  if (flag_100uSecTimerOn == true) /* 100us 마다 ADC */
   {
     flag_100uSecTimerOn = false;
     AIN_TIM_PeriodElapsedCallback();
   }
-  if (flag_1mSecTimerOn == true)
+
+  if (flag_1mSecTimerOn == true) /* 1ms 마다 1ms Loop 함수 호출 */
   {
     flag_1mSecTimerOn = false;
     user1msLoop();
@@ -80,7 +130,7 @@ void userLoop(void)
  * @brief 1ms 간격 수행 사용자 Loop 함수
  * 
  */
-void user1msLoop(void)
+static void user1msLoop(void)
 {
   static uint8_t looping = 0;
 
@@ -135,7 +185,7 @@ void user1msLoop(void)
 }
 
 //-----------------------------------------------------------------------------------------
-void Check_Todo(void)
+static void Check_Todo(void)
 {
   static int8_t loop = 0;
 
@@ -175,9 +225,9 @@ void Check_Todo(void)
 
 /**
  * @brief Set the Default Config object
- * 
+ *
  */
-void setDefaultConfig(void)
+static void setDefaultConfig(void)
 {
   stIOConfig.Do[0] = 0;       /*!< 디폴트 설정값  0=Off */
   stIOConfig.Do[1] = 0;       /*!< 디폴트 설정값  0=Off */
@@ -195,9 +245,9 @@ void setDefaultConfig(void)
 
 /**
  * @brief 라즈베리파이 통신 메시지 처리
- * 
+ *
  */
-void RasPI_Proc(void)
+static void RasPI_Proc(void)
 {
   static bool flag_receiveFWImage = false;
 
@@ -222,6 +272,7 @@ void RasPI_Proc(void)
       {
         memcpy(&stIOConfig, uart4Message.data, sizeof(stIOConfig));
       }
+      System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_REQUEST_CONFIG:
       //printf("MSGCMD_REQUEST_CONFIG\r\n");
@@ -244,29 +295,34 @@ void RasPI_Proc(void)
       printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
       break;
     case MSGCMD_SET_DO:
-      printf("MSGCMD_SET_DO\r\n");
+      //printf("MSGCMD_SET_DO\r\n");
+      DO_Write(0, uart4Message.data[0]);
+      DO_Write(1, uart4Message.data[1]);
+      stIOStatus.Do[0] = uart4Message.data[0];
+      stIOStatus.Do[1] = uart4Message.data[1];
       break;
-    case 0x99:
+    case 0x99: /* 리셋 */
       NVIC_SystemReset();
       break;
-    default:
+    default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");
       break;
     }
+    uart4Message.nextStage = START;
   }
 
   if ((flag_sendStatusTimerOn == true) && (flag_receiveFWImage == false))
   {
     flag_sendStatusTimerOn = false;
-    sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
+    sendMessageToRasPi(MSGCMD_INFO_IOVALUE, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
   }
 }
 
 /**
  * @brief 디지털 입력 처리
- * 
+ *
  */
-void Di_Proc(void)
+static void Di_Proc(void)
 {
   static uint32_t NT;
   uint32_t CT;

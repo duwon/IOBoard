@@ -174,8 +174,8 @@ void Flash_UserWrite4Byte(uint32_t flashWriteData, uint32_t addressIndex)
 
 /**
  * @brief 펌웨어 업데이트 프로세스
- * 
- * @param firmwareData 
+ *
+ * @param firmwareData
  */
 void procFirmwareUpdate(uint8_t *firmwareData)
 {
@@ -221,8 +221,8 @@ void procFirmwareUpdate(uint8_t *firmwareData)
 
 /**
  * @brief 펌웨어 업데이트 정보 쓰기
- * 
- * @param firmwareSize 
+ *
+ * @param firmwareSize
  */
 static void Update_Config_Write(uint32_t firmwareSize)
 {
@@ -246,8 +246,8 @@ static void Update_Config_Write(uint32_t firmwareSize)
 
 /**
  * @brief 펌웨어 업데이트 정보 삭제
- * 
- * @return int 
+ *
+ * @return int
  */
 static int Update_Config_Erase(void)
 {
@@ -263,6 +263,54 @@ static int Update_Config_Erase(void)
     return 1;
   }
   return 0;
+}
+
+/**
+ * @brief IO Config 초기값 Flash에 저장
+ * 
+ * @param flashWriteData: ioConfig 구조체 시작주소
+ * @param size: 구조체 크기 (Byte)
+ */
+void System_Config_Write(uint32_t *flashWriteData, uint32_t size)
+{
+  uint32_t FlagCompare = 0;
+  uint8_t ioConfigFlashData[20];
+  uint8_t ioConfigMemData[20];
+  memcpy(ioConfigFlashData, (unsigned char *)FLASH_SYSTEM_CONFIG_ADDRESS, size);
+  memcpy(ioConfigMemData, flashWriteData, size);
+
+  for (int i = 0; i < size; i++) /* Flash에 쓰여진 값과 비교 */
+  {
+    if (ioConfigFlashData[i] != ioConfigMemData[i])
+    {
+      FlagCompare |= 0x01;
+    }
+  }
+
+  if (FlagCompare == 0x01) /* Flash에 쓰여진 값과 다르면 쓰기 */
+  {
+    FLASH_EraseInitTypeDef EraseInitStruct;
+    EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;         /* PAGE 단위 지우기 */
+    EraseInitStruct.PageAddress = FLASH_SYSTEM_CONFIG_ADDRESS; /* 삭제 할 페이지 시작 주소 */
+    EraseInitStruct.NbPages = 1;                               /* 삭제 할 페이지 수 */
+
+    HAL_FLASH_Unlock();
+    uint32_t PageError = 0;
+    if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+    {
+      /* Error 처리 */
+    }
+
+    uint32_t Address = FLASH_SYSTEM_CONFIG_ADDRESS;
+    for (int32_t flashAddrIndex = 0; flashAddrIndex < ((size / 4U) + 1); flashAddrIndex++)
+    {
+      if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, *flashWriteData++) != HAL_OK)
+      {
+        /* Write Error */
+      }
+      Address += 4; /* 32bit 단위 쓰기임으로 주소 4byte 증가 */
+    }
+  }
 }
 
 /*****************************************부트로더 코드 ********************************************/
