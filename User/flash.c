@@ -8,11 +8,24 @@
 
   */
 
+#include <stdio.h>
 #include <string.h>
-#include "flash.h"
-#include "stm32f1xx_hal_flash.h"
 
+#include "flash.h"
 #include "uart.h"
+
+#define FIRMWARE_ADDR (FLASH_APPLECATION_ADDRESS_START)
+#define UPDATE_FIRMWARE_ADDR (FLASH_FW_ADDRESS_START)
+#define UPDATE_CONFIG_ADDR (FLASH_FWINFO_ADDRESS_START)
+
+struct CONFIG_BOOT
+{
+  unsigned char Idx[4];
+  uint32_t size;
+  uint32_t flag;
+};
+
+struct CONFIG_BOOT Boot_Cfg;
 
 /** @defgroup FLASH FLASH 제어 함수
   * @brief FLASH 제어
@@ -21,6 +34,8 @@
 
 static void Flash_UserErase(void);
 static ErrorStatus Flash_FwWrite(uint16_t flashNo, uint32_t *flashData);
+static void Update_Config_Write(uint32_t firmwareSize);
+static int Update_Config_Erase(void);
 
 /**
  * @brief 펌웨어 저장 영역 삭제
@@ -38,7 +53,6 @@ void Flash_FwErase(void)
   if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
   {
     /* Write Error */
-    /* while (1); */
   }
 }
 
@@ -58,7 +72,6 @@ static void Flash_UserErase(void)
   if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
   {
     /* Write Error */
-    /* while (1); */
   }
 }
 
@@ -110,7 +123,6 @@ void Flash_UserWrite(uint32_t *flashWriteData, uint32_t addressIndex, uint32_t s
     if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, tmpFlashReadData[flashAddrIndex]) != HAL_OK)
     {
       /* Write Error */
-      /* while (1); */
     }
     Address += 4; /* 32bit 단위 쓰기임으로 주소 4byte 증가 */
   }
@@ -154,140 +166,181 @@ void Flash_UserWrite4Byte(uint32_t flashWriteData, uint32_t addressIndex)
       if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, tmpFlashReadData[flashAddrIndex]) != HAL_OK)
       {
         /* Write Error */
-        /* while (1); */
       }
       Address += 4; /* 32bit 단위 쓰기임으로 주소 4byte 증가 */
     }
   }
 }
 
+/**
+ * @brief 펌웨어 업데이트 프로세스
+ * 
+ * @param firmwareData 
+ */
 void procFirmwareUpdate(uint8_t *firmwareData)
 {
-  //static uint16_t firmNumLast = 0;
+  static uint16_t firmNumLast = 0;
+  uint16_t firmNum = (((firmwareData[0] & 0x7F) << 8) + firmwareData[1]);
 
-  uint16_t firmNum = (firmwareData[0] << 8) + firmwareData[1];
-
-  if (Flash_FwWrite(firmNum, (uint32_t *)&firmwareData[2]) == SUCCESS)
+  /* 첫 패킷을 받았으면 지우기 */
+  if ((firmNum == 0) && (firmNumLast == 0))
   {
+    Flash_FwErase();
+  }
+
+  if (firmNum == firmNumLast)
+  {
+    if (Flash_FwWrite(firmNum, (uint32_t *)&firmwareData[2]) == SUCCESS)
+    {
+      sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
+      firmNumLast++;
+    }
+    else
+    {
+      /* error 처리 */
+      firmwareData[0] = ((firmNumLast - 1) >> 8U) & 0xFF;
+      firmwareData[1] = (firmNumLast - 1) & 0xFF;
+      sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
+    }
+  }
+  else if (firmNumLast != 0)
+  {
+    firmwareData[0] = (firmNumLast >> 8U) & 0xFF;
+    firmwareData[1] = (firmNumLast & 0xFF) - 1;
     sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
   }
-  else
+
+  if ((firmwareData[0] & 0x80) == 0x80) /* 펌웨어 전송 완료 */
   {
-    /* error 처리 */
+    (void)Update_Config_Erase();
+    Update_Config_Write((((firmwareData[0] & 0x7F) << 8) + firmwareData[1]) + 1);
+    printf("OK");
+    NVIC_SystemReset();
   }
 }
 
+/**
+ * @brief 펌웨어 업데이트 정보 쓰기
+ * 
+ * @param firmwareSize 
+ */
+static void Update_Config_Write(uint32_t firmwareSize)
+{
+  uint32_t Address = UPDATE_CONFIG_ADDR;
+  uint32_t tmpFlashReadData[sizeof(struct CONFIG_BOOT) / 4] = {
+      0U,
+  };
+
+  memcpy(Boot_Cfg.Idx, "SBAN", 4);
+  Boot_Cfg.size = firmwareSize * 192; // 패킷 펌웨어 사이즈
+  Boot_Cfg.flag = 1;
+
+  memcpy((void *)tmpFlashReadData, (void *)&Boot_Cfg, sizeof(struct CONFIG_BOOT));
+
+  for (int flashAddrIndex = 0; flashAddrIndex < (sizeof(struct CONFIG_BOOT) / 4); flashAddrIndex++)
+  {
+    HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, tmpFlashReadData[flashAddrIndex]);
+    Address += 4;
+  }
+}
+
+/**
+ * @brief 펌웨어 업데이트 정보 삭제
+ * 
+ * @return int 
+ */
+static int Update_Config_Erase(void)
+{
+  FLASH_EraseInitTypeDef EraseInitStruct;
+  EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES; /* PAGE 단위 지우기 */
+  EraseInitStruct.PageAddress = UPDATE_CONFIG_ADDR;  /* 삭제 할 페이지 시작 주소 */
+  EraseInitStruct.NbPages = 1;                       /* 삭제 할 페이지 수 */
+
+  HAL_FLASH_Unlock();
+  uint32_t PageError = 0;
+  if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+  {
+    return 1;
+  }
+  return 0;
+}
+
 /*****************************************부트로더 코드 ********************************************/
-#include <stdio.h>
-#include "iwdg.h"
-#include "rtc.h"
-
 typedef void (*pFunction)(void);
+pFunction Jump_To_Application;
+uint32_t JumpAddress;
 
+//--------------------------------------------------------
 ErrorStatus updateFirmware(void)
 {
-  HAL_IWDG_Refresh(&hiwdg);
-
   /* 어플리케이션 영역 삭제 */
-  printf("App Erase.\r\n");
   FLASH_EraseInitTypeDef EraseInitStruct;
-  EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;                                                             /* PAGE 단위 지우기 */
-  EraseInitStruct.PageAddress = FLASH_APPLECATION_ADDRESS_START;                                                 /* 삭제 할 시작주소 */
-  EraseInitStruct.NbPages = ((FLASH_FW_ADDRESS_START - FLASH_APPLECATION_ADDRESS_START) / FLASH_PAGE_SIZE) - 1U; /* 삭제 할 페이지 수 */
+  EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;                                                         /* PAGE 단위 지우기 */
+  EraseInitStruct.PageAddress = FLASH_APPLECATION_ADDRESS_START;                                             /* 삭제 할 시작주소 */
+  EraseInitStruct.NbPages = ((UPDATE_CONFIG_ADDR - FLASH_APPLECATION_ADDRESS_START) / FLASH_PAGE_SIZE) - 1U; /* 삭제 할 페이지 수 */
 
   HAL_FLASH_Unlock();
   uint32_t PageError = 0U; /*!< 0xFFFFFFFF 값이면 정상 삭제됨 */
   if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
   {
     /* Erase Error */
-    printf("Erase Error.\r\n");
     return ERROR;
   }
-  HAL_IWDG_Refresh(&hiwdg);
 
   /* 복사 */
-  printf("Fw Copy.\r\n");
   uint32_t Address_Application = FLASH_APPLECATION_ADDRESS_START;
   uint32_t Address_Fiwmare = FLASH_FW_ADDRESS_START;
+  uint32_t flashAddrIndexEnd = (Boot_Cfg.size / 4) + 1;
 
-  for (uint32_t flashAddrIndex = 0U; flashAddrIndex < ((FLASH_FW_ADDRESS_START - FLASH_APPLECATION_ADDRESS_START) / 4U); flashAddrIndex++)
+  HAL_FLASH_Unlock();
+  for (uint32_t flashAddrIndex = 0U; flashAddrIndex < flashAddrIndexEnd; flashAddrIndex++)
   {
     if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address_Application, *(__IO uint32_t *)Address_Fiwmare) != HAL_OK)
     {
       /* error 처리 */
-      printf("Write Error.\r\n");
       return ERROR;
     }
     Address_Application += 4U;
     Address_Fiwmare += 4U;
-    HAL_IWDG_Refresh(&hiwdg);
   }
 
-  printf("Update Completed.\r\n");
   return SUCCESS;
 }
 
-void receivedFirmware(void)
+//--------------------------------------------------------
+int Update_Config_Read(void)
 {
-	switch (uart4Message.msgID)
-	{
-	case MSGCMD_UPDATE_FW:
-		procFirmwareUpdate(uart4Message.data);
-		break;
-	default:
-		printf("MSG ERROR\r\n");
-	    NVIC_SystemReset();
-		break;
-	}
+  memcpy(&Boot_Cfg, (unsigned char *)UPDATE_CONFIG_ADDR, sizeof(struct CONFIG_BOOT));
+
+  if (memcmp(&Boot_Cfg.Idx[0], "SBAN", 4) == 0)
+    return 1;
+  else
+    return 0;
 }
 
-
+//--------------------------------------------------------
 void bootloader(void)
 {
-  printf("\r\n\r\nSTART BOOTLOADER\r\n");
+  memcpy(&Boot_Cfg, (unsigned char *)UPDATE_CONFIG_ADDR, sizeof(struct CONFIG_BOOT));
 
-
-  Uart_Init();
-  initMessage(&uart4Message, receivedFirmware);
-
-  uint16_t restartCount = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
-  printf("RESET Count : %0x\r\n", restartCount++);
-  HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, restartCount);
-
-
-  uint32_t mspValue = *(__IO uint32_t *)FLASH_FW_ADDRESS_START;
-  printf("MSP : %#010X\r\n", (unsigned int)mspValue);
-  if (mspValue != 0xFFFFFFFF)
+  if (memcmp(&Boot_Cfg.Idx[0], "SBAN", 4) == 0)
   {
-    if (updateFirmware() == SUCCESS)
+    if (Boot_Cfg.flag && Boot_Cfg.size && Boot_Cfg.size <= 100000)
     {
-      HAL_IWDG_Refresh(&hiwdg);
-      Flash_FwErase();
-      printf("Fw Erase.\r\n");
+      if (updateFirmware() == SUCCESS)
+      {
+        Flash_FwErase();
+      }
     }
+    Update_Config_Erase();
   }
 
-
-  if(restartCount > 5U)
-  {
-	  printf("Application booting Fail\r\n");
-	  HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0);
-	  while(1)
-	  {
-		  procMesssage(&uart4Message, &uart4Buffer);
-		  HAL_IWDG_Refresh(&hiwdg);
-	  }
-  }
-
-
-
-  pFunction JumpToApplication;
-  /* 어플리케이션 포인터 함수 */
-  uint32_t JumpAddress = *(__IO uint32_t *)(FLASH_APPLECATION_ADDRESS_START + 4U);
-  JumpToApplication = (pFunction)JumpAddress;
-  /* 어플리케이션 스택포인터 설정*/
+  /* Jump to user application */
+  JumpAddress = *(__IO uint32_t *)(FLASH_APPLECATION_ADDRESS_START + 4);
+  Jump_To_Application = (pFunction)JumpAddress;
+  /* Initialize user application's Stack Pointer */
   __set_MSP(*(__IO uint32_t *)FLASH_APPLECATION_ADDRESS_START);
-  JumpToApplication();
+  Jump_To_Application();
 }
 
 /**

@@ -89,10 +89,6 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 #ifdef COMPILE_BOOTLOADER
-  MX_DMA_Init();
-  MX_UART4_Init();
-  MX_IWDG_Init();
-  MX_RTC_Init();
   bootloader();
 #else
   SCB->VTOR = FLASH_APPLECATION_ADDRESS_START;

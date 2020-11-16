@@ -13,13 +13,10 @@
 #include "uart.h"
 #include "usart.h"
 
-
-
 /** @defgroup UART UART 제어 함수
   * @brief UART 제어 및 링 버퍼
   * @{
   */
-
 
 /* Private variables ---------------------------------------------------------*/
 uartFIFO_TypeDef uart1Buffer; /*!< UART1 링 버퍼 구조체 - RS232 */
@@ -29,12 +26,11 @@ uartFIFO_TypeDef uart4Buffer; /*!< UART4 링 버퍼 구조체 - Raspberry Pi */
 message_TypeDef uart2Message; /*!< UART2 메시지 구조체 - RS485 */
 message_TypeDef uart4Message; /*!< UART4 메시지 구조체- Raspberry Pi */
 
-
 /* Private functions ---------------------------------------------------------*/
-static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch); /*!< 버퍼에 1Byte 쓰기 */
+static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch);    /*!< 버퍼에 1Byte 쓰기 */
 static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t *ch); /*!< 버퍼에서 1Byte 읽기 */
 static void initBuffer(volatile uartFIFO_TypeDef *buffer);
-static uint8_t calChecksum(message_TypeDef* messageFrame);
+static uint8_t calChecksum(message_TypeDef *messageFrame);
 
 /* printf IO 사용을 위한 설정 */
 #ifdef __GNUC__
@@ -74,17 +70,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   if (huart->Instance == USART1) /* RS232 */
   {
     (void)putByteToBuffer(&uart1Buffer, uart1Buffer.rxCh);
-    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart1Buffer.rxCh, 1U);
   }
   if (huart->Instance == USART2) /* RS485 */
   {
     (void)putByteToBuffer(&uart2Buffer, uart2Buffer.rxCh);
-    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart2Buffer.rxCh, 1U);
   }
   if (huart->Instance == UART4) /* Raspberry Pi */
   {
     (void)putByteToBuffer(&uart4Buffer, uart4Buffer.rxCh);
-    (void)HAL_UART_Receive_DMA(huart, (uint8_t *)&uart4Buffer.rxCh, 1U);
   }
 }
 
@@ -177,7 +170,7 @@ static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t 
 
 void initMessage(message_TypeDef *messageFrame, void (*parsingFunction)(void))
 {
-/**
+  /**
 메시지 프레임 구조체를 초기화
 **/
   messageFrame->nextStage = START;
@@ -187,98 +180,98 @@ void initMessage(message_TypeDef *messageFrame, void (*parsingFunction)(void))
   messageFrame->parsing = parsingFunction;
 }
 
-static uint8_t calChecksum(message_TypeDef* messageFrame)
+static uint8_t calChecksum(message_TypeDef *messageFrame)
 {
-    uint8_t tmpCalChecksum = MESSAGE_STX ^ MESSAGE_ETX ^ messageFrame->msgID ^ messageFrame->datasize;
-    for (int i = 0; i < messageFrame->datasize ; i++)
-    {
-        tmpCalChecksum ^= messageFrame->data[i];
-    }
+  uint8_t tmpCalChecksum = MESSAGE_STX ^ MESSAGE_ETX ^ messageFrame->msgID ^ messageFrame->datasize;
+  for (int i = 0; i < messageFrame->datasize; i++)
+  {
+    tmpCalChecksum ^= messageFrame->data[i];
+  }
 
-    return tmpCalChecksum;
+  return tmpCalChecksum;
 }
 
-void procMesssage(message_TypeDef* messageFrame, uartFIFO_TypeDef* buffer)
+void procMesssage(message_TypeDef *messageFrame, uartFIFO_TypeDef *buffer)
 {
-	switch(messageFrame->nextStage)
-	{
-	case START :
-		if(getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
-		{
-			if(buffer->buffCh == MESSAGE_STX)
-			{
-				messageFrame->nextStage = MSGID;
-			}
-		}
-    	break;
-	case MSGID :
-		if(getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
-		{
-			messageFrame->msgID = buffer->buffCh;
-			messageFrame->nextStage = LENGTH;
-		}
-		break;
-	case LENGTH :
-		if(getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
-		{
-			messageFrame->datasize = buffer->buffCh;
-			if(messageFrame->datasize == 0)
-			{
-				messageFrame->nextStage = END;
-			}
-			else
-			{
-				messageFrame->nextStage = DATA;
-			}
-		}
-		break;
-	case DATA :
-		if(buffer->count >= messageFrame->datasize)
-		{
-			for(int i=0; i<messageFrame->datasize ; i++)
-			{
-				(void)getByteFromBuffer(buffer, &messageFrame->data[i]);
-			}
-			messageFrame->nextStage = END;
-		}
-		break;
-	case END :
-		if(getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
-		{
-			if(buffer->buffCh == MESSAGE_ETX)
-			{
-				messageFrame->nextStage = CHECKSUM;
-			}
-			else
-			{
-				messageFrame->nextStage = START;
-			}
-		}
-		break;
-	case CHECKSUM :
-		if(getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
-		{
+  switch (messageFrame->nextStage)
+  {
+  case START:
+    if (getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
+    {
+      if (buffer->buffCh == MESSAGE_STX)
+      {
+        messageFrame->nextStage = MSGID;
+      }
+    }
+    break;
+  case MSGID:
+    if (getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
+    {
+      messageFrame->msgID = buffer->buffCh;
+      messageFrame->nextStage = LENGTH;
+    }
+    break;
+  case LENGTH:
+    if (getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
+    {
+      messageFrame->datasize = buffer->buffCh;
+      if (messageFrame->datasize == 0)
+      {
+        messageFrame->nextStage = END;
+      }
+      else
+      {
+        messageFrame->nextStage = DATA;
+      }
+    }
+    break;
+  case DATA:
+    if (buffer->count >= messageFrame->datasize)
+    {
+      for (int i = 0; i < messageFrame->datasize; i++)
+      {
+        (void)getByteFromBuffer(buffer, &messageFrame->data[i]);
+      }
+      messageFrame->nextStage = END;
+    }
+    break;
+  case END:
+    if (getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
+    {
+      if (buffer->buffCh == MESSAGE_ETX)
+      {
+        messageFrame->nextStage = CHECKSUM;
+      }
+      else
+      {
+        messageFrame->nextStage = START;
+      }
+    }
+    break;
+  case CHECKSUM:
+    if (getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
+    {
 
-			if(buffer->buffCh == calChecksum(messageFrame))
-			{
-				messageFrame->nextStage = PARSING;
-			}
-			else
-			{
-				messageFrame->nextStage = START;
-			}
-		}
-		break;
-	case PARSING :
-    if(messageFrame->parsing != NULL)
+      if (buffer->buffCh == calChecksum(messageFrame))
+      {
+        messageFrame->nextStage = PARSING;
+      }
+      else
+      {
+        messageFrame->nextStage = START;
+      }
+    }
+    break;
+  case PARSING:
+    if (messageFrame->parsing != NULL)
     {
       messageFrame->parsing();
-		  messageFrame->nextStage = START;
+      messageFrame->nextStage = START;
     }
-		break;
-	default:
-		break;
-	}
+    break;
+  default:
+    break;
+  }
 }
 
 /**
@@ -290,20 +283,22 @@ void procMesssage(message_TypeDef* messageFrame, uartFIFO_TypeDef* buffer)
  */
 void sendMessageToRasPi(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
 {
-	uint8_t txPacket[MESSAGE_MAX_SIZE] = {0,};
-	txPacket[0] = MESSAGE_STX;
-	txPacket[1] = msgID;
-	txPacket[2] = dataLen;
-	txPacket[dataLen+3] = MESSAGE_ETX;
+  uint8_t txPacket[MESSAGE_MAX_SIZE] = {
+      0,
+  };
+  txPacket[0] = MESSAGE_STX;
+  txPacket[1] = msgID;
+  txPacket[2] = dataLen;
+  txPacket[dataLen + 3] = MESSAGE_ETX;
 
-	memcpy((void *)&txPacket[3], (void *)txData, dataLen);
+  memcpy((void *)&txPacket[3], (void *)txData, dataLen);
 
-	for(int i=0; i<(dataLen+4); i++)
-	{
-		txPacket[dataLen+4] ^= txPacket[i];
-	}
+  for (int i = 0; i < (dataLen + 4); i++)
+  {
+    txPacket[dataLen + 4] ^= txPacket[i];
+  }
 
-	HAL_UART_Transmit(&huart4, txPacket, dataLen+5, 0xFFFF);
+  HAL_UART_Transmit(&huart4, txPacket, dataLen + 5, 0xFFFF);
 }
 
 /**

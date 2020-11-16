@@ -40,19 +40,19 @@ _Min_Stack_Size = 0x400 ;	/* required amount of stack */
 /* Application memory
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 48K
   BOOT    (rx)    : ORIGIN = 0x8000000,	   LENGTH = 24K
-  FLASH   (rx)    : ORIGIN = 0x8006000,    LENGTH = 100K
-  FW      (rx)    : ORIGIN = 0x801E800,    LENGTH = 100K
-  FW_INFO (rx)    : ORIGIN = 0x8037800,    LENGTH = 2K
+  FLASH   (rx)    : ORIGIN = 0x8003000,    LENGTH = 100K
+  FW_INFO (rx)    : ORIGIN = 0x801C000,    LENGTH = 2K
+  FW      (rx)    : ORIGIN = 0x801D000,    LENGTH = 100K
   USER    (rx)    : ORIGIN = 0x803F800,    LENGTH = 2K
 */
 /* Memories definition */
 MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 48K
-  BOOT    (rx)    : ORIGIN = 0x8000000,	   LENGTH = 24K
-  FLASH   (rx)    : ORIGIN = 0x8006000,    LENGTH = 100K
-  FW      (rx)    : ORIGIN = 0x801E800,    LENGTH = 100K
-  FW_INFO (rx)    : ORIGIN = 0x8037800,    LENGTH = 2K
+  BOOT    (rx)    : ORIGIN = 0x8000000,	   LENGTH = 12K
+  FLASH   (rx)    : ORIGIN = 0x8003000,    LENGTH = 100K
+  FW_INFO (rx)    : ORIGIN = 0x801C000,    LENGTH = 2K
+  FW      (rx)    : ORIGIN = 0x801D000,    LENGTH = 100K
   USER    (rx)    : ORIGIN = 0x803F800,    LENGTH = 2K
 }
 

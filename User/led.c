@@ -10,7 +10,6 @@
 
 #include "led.h"
 
-
 /** @defgroup LED LED 제어 함수
   * @brief 지정된 LED 파라미터의 제어
   * @{
@@ -18,14 +17,13 @@
 
 /** @defgroup LED_Variable LED 변수
   * @{
-  */ 
-#define LEDPORTn  11 /*!< LED 포트 갯수 */
+  */
+#define LEDPORTn 11 /*!< LED 포트 갯수 */
 GPIO_TypeDef *LED_PORT[LEDPORTn] = {LD_DI1_GPIO_Port, LD_DI2_GPIO_Port, LD_DI3_GPIO_Port, LD_DI4_GPIO_Port, LD_AI1_GPIO_Port, LD_AI2_GPIO_Port, LD_RS485RDY_GPIO_Port, LD_RS232RDY_GPIO_Port, LD_DO1_GPIO_Port, LD_DO2_GPIO_Port, LD_AO_GPIO_Port};
 const uint16_t LED_PIN[LEDPORTn] = {LD_DI1_Pin, LD_DI2_Pin, LD_DI3_Pin, LD_DI4_Pin, LD_AI1_Pin, LD_AI2_Pin, LD_RS485RDY_Pin, LD_RS232RDY_Pin, LD_DO1_Pin, LD_DO2_Pin, LD_AO_Pin};
 /**
   * @}
-  */ 
-
+  */
 
 /**
   * @brief  선택한 LED On.
@@ -44,7 +42,7 @@ void LED_On(Led_TypeDef Led)
   */
 void LED_Off(Led_TypeDef Led)
 {
-  HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_SET); 
+  HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_SET);
 }
 
 /**

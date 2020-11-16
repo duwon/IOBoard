@@ -6,6 +6,6 @@
 
 void Dio_Init(void);
 void DO_Write(int8_t No, int8_t Value);
-uint8_t DI_Read(void);
+void DI_Read(uint8_t *returnValue);
 
 #endif /* DIO_H__ */
