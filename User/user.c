@@ -37,42 +37,41 @@
 #pragma pack(push, 1) /* 1바이트 크기로 정렬  */
 typedef struct
 {
-  uint8_t Do[2];      // 디폴트 설정값  0=Off
-  uint8_t Rtd_Cycle;  // 측정주기 sec	  초기값 10
-  uint8_t Ai_Cycle;   // 측정주기 sec   초기값 1
-  uint8_t Di_Cycle;   // 측정주기 sec   초기값 1
-  uint8_t Dps_Cycle;  // 측정주기 sec   초기값 1
-  uint8_t Ps_Cycle;   // 측정주기 sec   초기값 1
-  uint8_t Pm_Mode;    // 전산적력 측정 방식 0=3상, 1=단상
-  uint8_t Pm_Cycle;   // 측정주기 sec   초기값 60
-  uint16_t Pm_Volt;   // 파워메터 기준진압                 초기값 220
-  uint8_t Pm_Current; // 파워메터 기전전류  100 -> 10.0 A  초기값 50
-  uint8_t Pm_Freq;    // 파워메터 기준주파수               초기값 60
+  uint8_t Do[2];      /* 디폴트 설정값  0=Off */
+  uint8_t Rtd_Cycle;  /* 측정주기 sec	  초기값 10 */
+  uint8_t Ai_Cycle;   /* 측정주기 sec   초기값 1 */
+  uint8_t Di_Cycle;   /* 측정주기 sec   초기값 1 */
+  uint8_t Dps_Cycle;  /* 측정주기 sec   초기값 1 */
+  uint8_t Ps_Cycle;   /* 측정주기 sec   초기값 1 */
+  uint8_t Pm_Mode;    /* 전산적력 측정 방식 0=3상, 1=단상 */
+  uint8_t Pm_Cycle;   /* 측정주기 sec   초기값 60 */
+  uint16_t Pm_Volt;   /* 파워메터 기준진압                 초기값 220 */
+  uint8_t Pm_Current; /* 파워메터 기전전류  100 -> 10.0 A  초기값 50 */
+  uint8_t Pm_Freq;    /* 파워메터 기준주파수               초기값 60 */
 } Io_Config_TypeDef;
 #pragma pack(pop)
 
 typedef struct
 {
   //-------------------------------- PowerMeter
-  float Volt;          // 전압
-  float Current;       // 전류
-  float Cos;           // 역률
-  float Active;        // 유효전력
-  float Reactive;      // 무효전력
-  float Apparent;      // 피상전력
-  float Active_Energy; // 유효전력량
-
+  float Volt;          /*!< 전압 */
+  float Current;       /*!< 전류 */
+  float Cos;           /*!< 역률 */
+  float Active;        /*!< 유효전력 */
+  float Reactive;      /*!< 무효전력 */
+  float Apparent;      /*!< 피상전력 */
+  float Active_Energy; /*!< 유효전력량 */
   //-------------------------------- Odd I/O 상태값
-  uint16_t Rtd;   // MSB=정수, LSB=소수점
-  uint16_t Dps;   // MSB=정수, LSB=소수점  차압센서
-  uint16_t Ps;    // MSB=정수, LSB=소수점  압력센서
-  uint16_t Ai[2]; // MSB=정수, LSB=소수점
-  uint8_t Di[4];  // 0=Off, 1=On
-  uint8_t Do[2];  // 0=Off, 1=On
+  uint16_t Rtd;   /*!< MSB=정수, LSB=소수점 */
+  uint16_t Dps;   /*!< MSB=정수, LSB=소수점  차압센서 */
+  uint16_t Ps;    /*!< MSB=정수, LSB=소수점  압력센서 */
+  uint16_t Ai[2]; /*!< MSB=정수, LSB=소수점 */
+  uint8_t Di[4];  /*!< 0=Off, 1=On */
+  uint8_t Do[2];  /*!< 0=Off, 1=On */
 } Io_Status_TyeDef;
 
-static Io_Config_TypeDef stIOConfig;
-static Io_Status_TyeDef stIOStatus;
+static Io_Config_TypeDef stIOConfig; /*!< IO Board 설정값 */
+static Io_Status_TyeDef stIOStatus;  /*!< IO Board 상태정보 */
 
 static uint32_t Time_1sec_Count, Raspberry_Timer, Restart_Timer;
 static uint8_t Reset_sw = 0; // Reset switch
@@ -82,6 +81,7 @@ static void Check_Todo(void);
 
 static void setDefaultConfig(void);
 static void RasPI_Proc(void);
+static void Rs232_Proc(void);
 static void Di_Proc(void);
 
 /**
@@ -93,6 +93,7 @@ void userStart(void)
 #ifdef DEBUG
   printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
 #endif
+  LED_Init();
   RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
   Uart_Init();  /* UART 통신 시작 */
   Timer_Init(); /* 타이머 시작 */
@@ -112,6 +113,7 @@ void userStart(void)
 void userLoop(void)
 {
   procMesssage(&uart4Message, &uart4Buffer); /* 라즈베리파이(UART4) 메시지 처리 */
+  procMesssage(&uart1Message, &uart1Buffer); /* RS232(UART1) 메시지 처리 */
 
   if (flag_100uSecTimerOn == true) /* 100us 마다 ADC */
   {
@@ -145,7 +147,7 @@ static void user1msLoop(void)
     }
     break;
   case 1: //----------------------------------------------<
-    //Rs232_Proc();
+    Rs232_Proc();
     break;
   case 2: //----------------------------------------------<
     //Rs485_Proc();
@@ -184,7 +186,10 @@ static void user1msLoop(void)
   }
 }
 
-//-----------------------------------------------------------------------------------------
+/**
+ * @brief 1초에 한 번 수행
+ * 
+ */
 static void Check_Todo(void)
 {
   static int8_t loop = 0;
@@ -205,6 +210,7 @@ static void Check_Todo(void)
       break;
     }
     break;
+    
   case 1: //------------------------------ Restart
     if (Restart_Timer)
     {
@@ -261,7 +267,7 @@ static void RasPI_Proc(void)
     {
     case MSGCMD_REQUEST_TIME:
       //printf("MSGCMD_REQUEST_TIME\r\n");
-      RTC_Get(txData);
+      RTC_Get(txData); /* txData[5:0] */
       txData[6] = VERSION_MAJOR;
       txData[7] = VERSION_MINOR;
       sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
@@ -273,15 +279,19 @@ static void RasPI_Proc(void)
         memcpy(&stIOConfig, uart4Message.data, sizeof(stIOConfig));
       }
       System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
+      sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_REQUEST_CONFIG:
       //printf("MSGCMD_REQUEST_CONFIG\r\n");
-      //setDefaultConfig();
       sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_UPDATE_TIME:
-      RTC_Set(uart4Message.data);
       //printf("MSGCMD_UPDATE_TIME\r\n");
+      RTC_Set(uart4Message.data);
+      RTC_Get(txData); /* txData[5:0] */
+      txData[6] = VERSION_MAJOR;
+      txData[7] = VERSION_MINOR;
+      sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
       break;
     case MSGCMD_UPDATE_FW:
       //printf("MSGCMD_UPDATE_FW\r\n");
@@ -316,6 +326,72 @@ static void RasPI_Proc(void)
     flag_sendStatusTimerOn = false;
     sendMessageToRasPi(MSGCMD_INFO_IOVALUE, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
   }
+}
+
+static void Rs232_Proc(void)
+{
+	  if (uart1Message.nextStage == PARSING)
+	  {
+	    uint8_t txData[MESSAGE_MAX_SIZE] = {
+	        0,
+	    };
+
+	    switch (uart1Message.msgID)
+	    {
+	    case MSGCMD_REQUEST_TIME:
+	      //printf("MSGCMD_REQUEST_TIME\r\n");
+	      RTC_Get(txData); /* txData[5:0] */
+	      txData[6] = VERSION_MAJOR;
+	      txData[7] = VERSION_MINOR;
+	      sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
+	      break;
+	    case MSGCMD_UPDATE_CONFIG:
+	      //printf("MSGCMD_UPDATE_CONFIG\r\n");
+	      if (memcmp(&stIOConfig, uart1Message.data, sizeof(stIOConfig)) != 0)
+	      {
+	        memcpy(&stIOConfig, uart1Message.data, sizeof(stIOConfig));
+	      }
+	      System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
+	      sendMessageToRS232(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
+	      break;
+	    case MSGCMD_REQUEST_CONFIG:
+	      //printf("MSGCMD_REQUEST_CONFIG\r\n");
+	    	sendMessageToRS232(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
+	      break;
+	    case MSGCMD_UPDATE_TIME:
+	      //printf("MSGCMD_UPDATE_TIME\r\n");
+	      RTC_Set(uart1Message.data);
+	      RTC_Get(txData); /* txData[5:0] */
+	      txData[6] = VERSION_MAJOR;
+	      txData[7] = VERSION_MINOR;
+	      sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
+	      break;
+	    case MSGCMD_UPDATE_FW:
+	      //printf("MSGCMD_UPDATE_FW\r\n");
+	      procFirmwareUpdate(uart1Message.data);
+	      break;
+	    case MSGCMD_UPDATE_WATEMETER_CAL:
+	      printf("MSGCMD_UPDATE_WATEMETER_CAL\r\n");
+	      break;
+	    case MSGCMD_REQUEST_WATMETER_VAL:
+	      printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
+	      break;
+	    case MSGCMD_SET_DO:
+	      //printf("MSGCMD_SET_DO\r\n");
+	      DO_Write(0, uart1Message.data[0]);
+	      DO_Write(1, uart1Message.data[1]);
+	      stIOStatus.Do[0] = uart1Message.data[0];
+	      stIOStatus.Do[1] = uart1Message.data[1];
+	      break;
+	    case 0x99: /* 리셋 */
+	      NVIC_SystemReset();
+	      break;
+	    default: /* 메시지 없음 */
+	      printf("MSG ERROR\r\n");
+	      break;
+	    }
+	    uart1Message.nextStage = START;
+	  }
 }
 
 /**

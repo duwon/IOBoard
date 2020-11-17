@@ -132,6 +132,8 @@ void Error_Handler(void);
 #define RASPI_TX4_GPIO_Port GPIOC
 #define RASPI_RX4_Pin GPIO_PIN_11
 #define RASPI_RX4_GPIO_Port GPIOC
+#define LD_CC_Pin GPIO_PIN_0
+#define LD_CC_GPIO_Port GPIOD
 #define LD_AO_Pin GPIO_PIN_1
 #define LD_AO_GPIO_Port GPIOD
 #define LD_DO2_Pin GPIO_PIN_3

@@ -16,8 +16,13 @@ typedef enum
   LD_RS232RDY,
   LD_DO1,
   LD_DO2,
-  LD_AO
+  LD_AO,
+  LD_CC
 } Led_TypeDef;
 
+void LED_On(Led_TypeDef Led);
+void LED_Off(Led_TypeDef Led);
+void LED_Toggle(Led_TypeDef Led);
+void LED_Init(void);
 
 #endif /* LED_H__ */

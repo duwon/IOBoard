@@ -18,9 +18,9 @@
 /** @defgroup LED_Variable LED 변수
   * @{
   */
-#define LEDPORTn 11 /*!< LED 포트 갯수 */
-GPIO_TypeDef *LED_PORT[LEDPORTn] = {LD_DI1_GPIO_Port, LD_DI2_GPIO_Port, LD_DI3_GPIO_Port, LD_DI4_GPIO_Port, LD_AI1_GPIO_Port, LD_AI2_GPIO_Port, LD_RS485RDY_GPIO_Port, LD_RS232RDY_GPIO_Port, LD_DO1_GPIO_Port, LD_DO2_GPIO_Port, LD_AO_GPIO_Port};
-const uint16_t LED_PIN[LEDPORTn] = {LD_DI1_Pin, LD_DI2_Pin, LD_DI3_Pin, LD_DI4_Pin, LD_AI1_Pin, LD_AI2_Pin, LD_RS485RDY_Pin, LD_RS232RDY_Pin, LD_DO1_Pin, LD_DO2_Pin, LD_AO_Pin};
+#define LEDPORTn 12 /*!< LED 포트 갯수 */
+GPIO_TypeDef *LED_PORT[LEDPORTn] = {LD_DI1_GPIO_Port, LD_DI2_GPIO_Port, LD_DI3_GPIO_Port, LD_DI4_GPIO_Port, LD_AI1_GPIO_Port, LD_AI2_GPIO_Port, LD_RS485RDY_GPIO_Port, LD_RS232RDY_GPIO_Port, LD_DO1_GPIO_Port, LD_DO2_GPIO_Port, LD_AO_GPIO_Port, LD_CC_GPIO_Port};
+const uint16_t LED_PIN[LEDPORTn] = {LD_DI1_Pin, LD_DI2_Pin, LD_DI3_Pin, LD_DI4_Pin, LD_AI1_Pin, LD_AI2_Pin, LD_RS485RDY_Pin, LD_RS232RDY_Pin, LD_DO1_Pin, LD_DO2_Pin, LD_AO_Pin, LD_CC_Pin};
 /**
   * @}
   */
@@ -54,6 +54,15 @@ void LED_Off(Led_TypeDef Led)
 void LED_Toggle(Led_TypeDef Led)
 {
   HAL_GPIO_TogglePin(LED_PORT[Led], LED_PIN[Led]);
+}
+
+void LED_Init(void)
+{
+	for(int i=0; i<LEDPORTn; i++)
+	{
+		LED_Off(i);
+	}
+
 }
 
 /**

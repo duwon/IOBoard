@@ -64,6 +64,7 @@ extern uartFIFO_TypeDef uart1Buffer; /*!< UART1 링 버퍼 구조체 - RS232 */
 extern uartFIFO_TypeDef uart2Buffer; /*!< UART2 링 버퍼 구조체 - RS485 */
 extern uartFIFO_TypeDef uart4Buffer; /*!< UART4 링 버퍼 구조체 - Raspberry Pi */
 
+extern message_TypeDef uart1Message; /*!< UART1 메시지 구조체 - RS232 */
 extern message_TypeDef uart2Message; /*!< UART2 메시지 구조체 - RS485 */
 extern message_TypeDef uart4Message; /*!< UART4 메시지 구조체- Raspberry Pi */
 
@@ -72,5 +73,5 @@ void Uart_Init(void); /*!< UART 관련 설정 초기화 */
 void initMessage(message_TypeDef *messageFrame, void (*parsingFunction)(void));
 void procMesssage(message_TypeDef* messageFrame, uartFIFO_TypeDef* buffer);
 void sendMessageToRasPi(uint8_t msgID, uint8_t *txData, uint8_t dataLen);
-
+void sendMessageToRS232(uint8_t msgID, uint8_t *txData, uint8_t dataLen);
 #endif /* UART_H__ */

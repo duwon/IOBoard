@@ -12,6 +12,7 @@
 #include <string.h>
 #include "uart.h"
 #include "usart.h"
+#include "led.h"
 
 /** @defgroup UART UART 제어 함수
   * @brief UART 제어 및 링 버퍼
@@ -23,6 +24,7 @@ uartFIFO_TypeDef uart1Buffer; /*!< UART1 링 버퍼 구조체 - RS232 */
 uartFIFO_TypeDef uart2Buffer; /*!< UART2 링 버퍼 구조체 - RS485 */
 uartFIFO_TypeDef uart4Buffer; /*!< UART4 링 버퍼 구조체 - Raspberry Pi */
 
+message_TypeDef uart1Message; /*!< UART1 메시지 구조체 - RS232 */
 message_TypeDef uart2Message; /*!< UART2 메시지 구조체 - RS485 */
 message_TypeDef uart4Message; /*!< UART4 메시지 구조체- Raspberry Pi */
 
@@ -55,6 +57,7 @@ void Uart_Init(void)
   initBuffer(&uart4Buffer);
 
   (void)HAL_UART_Receive_DMA(&huart1, &uart1Buffer.rxCh, 1U);
+  //(void)HAL_UART_Receive_DMA(&huart1, &uart4Buffer.rxCh, 1U);
   (void)HAL_UART_Receive_DMA(&huart2, &uart2Buffer.rxCh, 1U);
   (void)HAL_UART_Receive_DMA(&huart4, &uart4Buffer.rxCh, 1U);
 }
@@ -70,6 +73,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   if (huart->Instance == USART1) /* RS232 */
   {
     (void)putByteToBuffer(&uart1Buffer, uart1Buffer.rxCh);
+    //(void)putByteToBuffer(&uart4Buffer, uart4Buffer.rxCh);
   }
   if (huart->Instance == USART2) /* RS485 */
   {
@@ -146,7 +150,7 @@ static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch
 static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t *ch)
 {
   ErrorStatus status = ERROR;
-
+  __disable_irq();
   if (buffer->count != 0U) /* 버퍼에 데이터가 있으면 */
   {
 
@@ -164,7 +168,7 @@ static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t 
   {
     status = ERROR;
   }
-
+  __enable_irq();
   return status;
 }
 
@@ -299,6 +303,34 @@ void sendMessageToRasPi(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
   }
 
   HAL_UART_Transmit(&huart4, txPacket, dataLen + 5, 0xFFFF);
+}
+
+/**
+ * @brief RS232에 데이터 전송
+ *
+ * @param msgID: Command
+ * @param txData: Payload Data
+ * @param dataLen: Payload Data 길이
+ */
+void sendMessageToRS232(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
+{
+  uint8_t txPacket[MESSAGE_MAX_SIZE] = {
+      0,
+  };
+  txPacket[0] = MESSAGE_STX;
+  txPacket[1] = msgID;
+  txPacket[2] = dataLen;
+  txPacket[dataLen + 3] = MESSAGE_ETX;
+
+  memcpy((void *)&txPacket[3], (void *)txData, dataLen);
+
+  for (int i = 0; i < (dataLen + 4); i++)
+  {
+    txPacket[dataLen + 4] ^= txPacket[i];
+  }
+
+  HAL_UART_Transmit(&huart1, txPacket, dataLen + 5, 0xFFFF);
+  LED_Toggle(LD_RS232RDY);
 }
 
 /**
