@@ -87,8 +87,8 @@ void RTC_Load(void)
   uint8_t I2CTxData[1] = {0x00U};
   uint8_t I2CRxData[7];
 
-  HAL_I2C_Master_Transmit(&hi2c2, RTC_I2C_ADDRESS, I2CTxData, 1, 0xFFU);                /* 주소번지 0 전송 */
-  HAL_I2C_Master_Receive(&hi2c2, RTC_I2C_ADDRESS, I2CRxData, sizeof(I2CRxData), 0xFFU); /* 6바이트 읽음 */
+  HAL_I2C_Master_Transmit(&hi2c1, RTC_I2C_ADDRESS, I2CTxData, 1, 0xFFU);                /* 주소번지 0 전송 */
+  HAL_I2C_Master_Receive(&hi2c1, RTC_I2C_ADDRESS, I2CRxData, sizeof(I2CRxData), 0xFFU); /* 6바이트 읽음 */
 
   sTempTime.Seconds = I2CRxData[0];
   sTempTime.Minutes = I2CRxData[1];
@@ -156,7 +156,7 @@ void RTC_Set(uint8_t *pTime)
   I2CTxData[6] = sTempDate.Month;
   I2CTxData[7] = sTempDate.Year;
 
-  HAL_I2C_Master_Transmit(&hi2c2, RTC_I2C_ADDRESS, I2CTxData, sizeof(I2CTxData), 0xFFU);
+  HAL_I2C_Master_Transmit(&hi2c1, RTC_I2C_ADDRESS, I2CTxData, sizeof(I2CTxData), 0xFFU);
 }
 
 /**

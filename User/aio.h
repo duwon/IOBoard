@@ -21,4 +21,6 @@ void AO_Init(void);
 float AI_Read(int8_t No);
 void AIN_TIM_PeriodElapsedCallback(void);
 
+void LMP90080_Test(void);
+void SY7T609_Test(void);
 #endif /* AIO_H__ */

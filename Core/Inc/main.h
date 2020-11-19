@@ -126,8 +126,8 @@ void Error_Handler(void);
 #define RS232_TX1_GPIO_Port GPIOA
 #define RS232_RX1_Pin GPIO_PIN_10
 #define RS232_RX1_GPIO_Port GPIOA
-#define AO_NSS_Pin GPIO_PIN_15
-#define AO_NSS_GPIO_Port GPIOA
+#define PM_NSS_Pin GPIO_PIN_15
+#define PM_NSS_GPIO_Port GPIOA
 #define RASPI_TX4_Pin GPIO_PIN_10
 #define RASPI_TX4_GPIO_Port GPIOC
 #define RASPI_RX4_Pin GPIO_PIN_11
@@ -144,10 +144,12 @@ void Error_Handler(void);
 #define DO2_GPIO_Port GPIOD
 #define DO1_Pin GPIO_PIN_6
 #define DO1_GPIO_Port GPIOD
-#define AO_SCK_Pin GPIO_PIN_3
-#define AO_SCK_GPIO_Port GPIOB
-#define AO_SDI_Pin GPIO_PIN_5
-#define AO_SDI_GPIO_Port GPIOB
+#define PM_SCK_Pin GPIO_PIN_3
+#define PM_SCK_GPIO_Port GPIOB
+#define PM_MISO_Pin GPIO_PIN_4
+#define PM_MISO_GPIO_Port GPIOB
+#define PM_SDI_Pin GPIO_PIN_5
+#define PM_SDI_GPIO_Port GPIOB
 #define RTC_SCK_Pin GPIO_PIN_6
 #define RTC_SCK_GPIO_Port GPIOB
 #define RTC_SDA_Pin GPIO_PIN_7

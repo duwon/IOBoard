@@ -9,6 +9,7 @@
   */
 
 #include "dio.h"
+#include "led.h"
 
 /** @defgroup DIO Digital Input/Output 제어 함수
   * @brief Digital I/O 제어
@@ -46,7 +47,7 @@ void DO_Write(int8_t No, int8_t Value)
   if (No < DOPORTn)
   {
     HAL_GPIO_WritePin(DO_PORT[No], DO_PIN[No], (Value == 0U) ? GPIO_PIN_RESET : GPIO_PIN_SET);
-    HAL_GPIO_WritePin(LD_DO_PORT[No], LD_DO_PIN[No], (Value == 0U) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LD_DO_PORT[No], LD_DO_PIN[No], (Value == 0U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
   }
 }
 
@@ -64,10 +65,12 @@ void DI_Read(uint8_t *returnValue)
     if (GPIO_PIN_SET == HAL_GPIO_ReadPin(DI_PORT[i], DI_PIN[i]))
     {
       returnValue[i] = 1;
+      LED_Off(LD_DI1 + i);
     }
     else
     {
       returnValue[i] = 0;
+      LED_On(LD_DI1 + i);
     }
   }
 }

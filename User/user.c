@@ -118,11 +118,11 @@ void userLoop(void)
   if (flag_100uSecTimerOn == true) /* 100us 마다 ADC */
   {
     flag_100uSecTimerOn = false;
-    AIN_TIM_PeriodElapsedCallback();
   }
 
   if (flag_1mSecTimerOn == true) /* 1ms 마다 1ms Loop 함수 호출 */
   {
+    AIN_TIM_PeriodElapsedCallback();
     flag_1mSecTimerOn = false;
     user1msLoop();
   }
@@ -325,6 +325,7 @@ static void RasPI_Proc(void)
   {
     flag_sendStatusTimerOn = false;
     sendMessageToRasPi(MSGCMD_INFO_IOVALUE, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
+    sendMessageToRS232(MSGCMD_INFO_IOVALUE, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
   }
 }
 
@@ -386,6 +387,14 @@ static void Rs232_Proc(void)
 	    case 0x99: /* 리셋 */
 	      NVIC_SystemReset();
 	      break;
+	    case 0xD1: /* test 1 */
+	    	//printf("TEST1 \r\n");
+	    	LMP90080_Test();
+	    	break;
+	    case 0xD2: /* test 2 */
+	    	//printf("TEST2 \r\n");
+	    	SY7T609_Test();
+	    	break;
 	    default: /* 메시지 없음 */
 	      printf("MSG ERROR\r\n");
 	      break;

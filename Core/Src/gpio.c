@@ -54,7 +54,7 @@ void MX_GPIO_Init(void)
                           |LD_DI2_Pin|LD_DI1_Pin|LD_RS485RDY_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, AIN_NSS_Pin|LD_RS232RDY_Pin|AO_NSS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, AIN_NSS_Pin|LD_RS232RDY_Pin|PM_NSS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET);
@@ -74,7 +74,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PAPin PAPin PAPin */
-  GPIO_InitStruct.Pin = AIN_NSS_Pin|LD_RS232RDY_Pin|AO_NSS_Pin;
+  GPIO_InitStruct.Pin = AIN_NSS_Pin|LD_RS232RDY_Pin|PM_NSS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
