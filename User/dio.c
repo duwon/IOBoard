@@ -64,12 +64,12 @@ void DI_Read(uint8_t *returnValue)
   {
     if (GPIO_PIN_SET == HAL_GPIO_ReadPin(DI_PORT[i], DI_PIN[i]))
     {
-      returnValue[i] = 1;
+      returnValue[i] = 0;
       LED_Off(LD_DI1 + i);
     }
     else
     {
-      returnValue[i] = 0;
+      returnValue[i] = 1;
       LED_On(LD_DI1 + i);
     }
   }

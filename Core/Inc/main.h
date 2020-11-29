@@ -62,6 +62,8 @@ void Error_Handler(void);
 #define LD_AI2_GPIO_Port GPIOE
 #define LD_AI1_Pin GPIO_PIN_6
 #define LD_AI1_GPIO_Port GPIOE
+#define EN_RASPI_Pin GPIO_PIN_1
+#define EN_RASPI_GPIO_Port GPIOA
 #define RS485_TX2_Pin GPIO_PIN_2
 #define RS485_TX2_GPIO_Port GPIOA
 #define RS485_RX2_Pin GPIO_PIN_3
@@ -74,6 +76,9 @@ void Error_Handler(void);
 #define AIN_MISO_GPIO_Port GPIOA
 #define AIN_MOSI_Pin GPIO_PIN_7
 #define AIN_MOSI_GPIO_Port GPIOA
+#define AIN_DRDYB_Pin GPIO_PIN_4
+#define AIN_DRDYB_GPIO_Port GPIOC
+#define AIN_DRDYB_EXTI_IRQn EXTI4_IRQn
 #define DI1_Pin GPIO_PIN_7
 #define DI1_GPIO_Port GPIOE
 #define DI2_Pin GPIO_PIN_8
@@ -120,6 +125,10 @@ void Error_Handler(void);
 #define LORA_RESET__GPIO_Port GPIOD
 #define LORA_EN_Pin GPIO_PIN_15
 #define LORA_EN_GPIO_Port GPIOD
+#define LD_RDY_Pin GPIO_PIN_6
+#define LD_RDY_GPIO_Port GPIOC
+#define SW_RESET_Pin GPIO_PIN_7
+#define SW_RESET_GPIO_Port GPIOC
 #define LD_RS232RDY_Pin GPIO_PIN_8
 #define LD_RS232RDY_GPIO_Port GPIOA
 #define RS232_TX1_Pin GPIO_PIN_9

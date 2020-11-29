@@ -16,11 +16,21 @@ typedef enum
   DAC_HIGH_Z
 } DAC_MODE_TypeDef;
 
-void AI_Init(void);
-void AO_Init(void);
+extern uint8_t spi1RxBuffer[10];
+
+void AIO_Init(void);
 float AI_Read(int8_t No);
 void AIN_TIM_PeriodElapsedCallback(void);
 
 void LMP90080_Test(void);
+void LMP90080_GPIO_Write(uint8_t PinNum, uint8_t PinState);
 void SY7T609_Test(void);
+
+
+void LMP90080_WriteReg(uint8_t regNum, uint8_t regData);
+uint8_t LMP90080_ReadReg(uint8_t regNum);
+uint8_t LMP90080_ReadRegReadAddress(uint8_t regNum);
+uint16_t LMP90080_ReadReg2Byte(uint8_t regNum);
+void LMP90080_ReadReg_IT(uint8_t regNum);
+float LMP90080_ReadRTD(void);
 #endif /* AIO_H__ */

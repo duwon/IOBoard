@@ -17,7 +17,11 @@ typedef enum
   LD_DO1,
   LD_DO2,
   LD_AO,
-  LD_CC
+  LD_CC,
+  LD_RDY,
+  LD_AIN1,
+  LD_AIN2,
+  LD_RTD
 } Led_TypeDef;
 
 void LED_On(Led_TypeDef Led);
