@@ -451,17 +451,34 @@ static void Di_Proc(void)
   }
 }
 
+#define RTD_SENSING_AVERAGE_CNT 100
 static void Rtd_Proc(void)
 {
-  static uint32_t NT;
+  static double rtdSum = 0;
+  static uint8_t rtdAverageCnt = 0;
+  static float rtdValue[RTD_SENSING_AVERAGE_CNT] = {0,};
+  static uint32_t NT = 0;
   uint32_t CT;
+  double rtdAverage = 0;
 
   CT = HAL_GetTick();
   if (CT > NT)
   {
-    stIOStatus.Rtd = (uint16_t)LMP90080_ReadRTD(); /* 소수점 이하 추가 */
+	rtdAverage = rtdSum / RTD_SENSING_AVERAGE_CNT;
+    stIOStatus.Rtd = ((uint_16)rtdAverage << 8) + ((rtdAverage - (uint8_t)rtdAverage) * 100); /* 소수점 이하 추가 */
     NT = CT + ((uint32_t)stIOConfig.Rtd_Cycle << 10U);
+    rtdSum = 0;
+    memset((void*)rtdValue, 0, sizeof(rtdValue));
   }
+
+  /* RTD값 합계 구하기 */
+  rtdValue[rtdAverageCnt] = LMP90080_ReadRTD();
+  rtdSum += rtdValue[rtdAverageCnt++];
+  if(rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
+  {
+	  rtdAverageCnt = 0;
+  }
+  rtdSum -= rtdValue[rtdAverageCnt];
 }
 
 static void Dp_Proc(void)
