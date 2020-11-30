@@ -14,15 +14,13 @@
 #include "tim.h"
 #include "spi.h"
 
-uint8_t spi1RxBuffer[10];         /*!< AIN SPI - LMP90080 수신 버퍼 */
-uint8_t spi3RxBuffer[10];         /*!< EMP SPI - SY7T609 수신 버퍼 */
+uint8_t spi1RxBuffer[10];                /*!< AIN SPI - LMP90080 수신 버퍼 */
+uint8_t spi3RxBuffer[10];                /*!< EMP SPI - SY7T609 수신 버퍼 */
 static bool flag_spi1RxComplete = false; /*!< AIN SPI - LMP90080 수신 완료 플래그, false로 변경해야 수신 가능 */
 static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 플래그, false로 변경해야 수신 가능 */
 static void LMP90080_Init(void);
 
 uint8_t LMP9000_GPIO_REG = 0U;
-
-
 
 /**
  * @brief Analog Input 
@@ -38,50 +36,40 @@ float AI_Read(int8_t No)
 
 void AIO_Init(void)
 {
-	LMP90080_Init();
+  LMP90080_Init();
 }
 
 static void LMP90080_Init(void)
 {
-	  LMP9000_GPIO_REG = 0x00U;
-	  LMP90080_WriteReg(0x00U, 0xC3U);            /* RESET. 0xC3: Register and conversion reset */
-	  LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
-	  LMP90080_WriteReg(0x0EU, 0x3FU);            /* [6:0] Set GPIO Output */
-	  LMP90080_WriteReg(0x0FU, LMP9000_GPIO_REG); /* [6:0] Set GPIO Low */
-	  LMP90080_WriteReg(0x10, 0x02U);              /* Background Calibration Control.  BgcalMode2: Offset Correction / Gain Correction */
-	  LMP90080_WriteReg(0x11, 0xA3U);              /* SPI DATA READY BAR CONTROL (ADDRESS 0x11) */
-	  LMP90080_WriteReg(0x12, 0x0AU);    /* [5] External clock detection. 1: "External-Clock Detection" is bypassed
+  LMP9000_GPIO_REG = 0x00U;
+  LMP90080_WriteReg(0x00U, 0xC3U);            /* RESET. 0xC3: Register and conversion reset */
+  LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
+  LMP90080_WriteReg(0x0EU, 0x3FU);            /* [6:0] Set GPIO Output */
+  LMP90080_WriteReg(0x0FU, LMP9000_GPIO_REG); /* [6:0] Set GPIO Low */
+  LMP90080_WriteReg(0x10, 0x02U);             /* Background Calibration Control.  BgcalMode2: Offset Correction / Gain Correction */
+  LMP90080_WriteReg(0x11, 0xA3U);             /* SPI DATA READY BAR CONTROL (ADDRESS 0x11) */
+  LMP90080_WriteReg(0x12, 0x0AU);             /* [5] External clock detection. 1: "External-Clock Detection" is bypassed
 	                                                 [4] Clock Select. 0: Internal, 1: Selects external clock
 	                                                 [3:0] RTC Current Select, 1mA */
-	  LMP90080_WriteReg(0x17U, 0x00U);
-	  LMP90080_WriteReg(0x1FU, (0 << 6) + (2 << 3) + 0);             /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
-	  LMP90080_WriteReg(0x20U, (1 << 6) + (0 << 3) + 1);   /* CH0 Config. [6] Select VREFP2 [5:3] AIN0 - Psitive [2:0] AIN1 - Negative */
-	  LMP90080_WriteReg(0x21U, (7 << 4) + (3 << 1));   /* CH1 SPS 7, Gain 0:0, 1:2, 3:8, 4:16 */
-	  LMP90080_WriteReg(0x22U, (0 << 6) + (2 << 3) + 7);   /* CH1 Input. AIN2 - Psitive, AIN7 - Negative */
-	  LMP90080_WriteReg(0x23U, 0x70);   /* CH2 SPS, Gain 1 */
-	  LMP90080_WriteReg(0x24U, (0 << 6) + (3 << 3) + 7);   /* CH2 Input. AIN3 - Psitive, AIN7 - Negative */
-	  LMP90080_WriteReg(0x25U, 0x70);   /* CH2 SPS, Gain 1 */
+  LMP90080_WriteReg(0x17U, 0x00U);
+  LMP90080_WriteReg(0x1FU, (0 << 6) + (2 << 3) + 0); /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
+  LMP90080_WriteReg(0x20U, (1 << 6) + (0 << 3) + 1); /* CH0 Config. [6] Select VREFP2 [5:3] AIN0 - Psitive [2:0] AIN1 - Negative */
+  LMP90080_WriteReg(0x21U, (7 << 4) + (3 << 1));     /* CH1 SPS 7, Gain 0:0, 1:2, 3:8, 4:16 */
+  LMP90080_WriteReg(0x22U, (0 << 6) + (2 << 3) + 7); /* CH1 Input. AIN2 - Psitive, AIN7 - Negative */
+  LMP90080_WriteReg(0x23U, 0x70);                    /* CH2 SPS, Gain 1 */
+  LMP90080_WriteReg(0x24U, (0 << 6) + (3 << 3) + 7); /* CH2 Input. AIN3 - Psitive, AIN7 - Negative */
+  LMP90080_WriteReg(0x25U, 0x70);                    /* CH2 SPS, Gain 1 */
 }
 
 float LMP90080_ReadRTD(void)
 {
-	float temperature;
-	//static int cntADCOutNotAvailable = 0;
-	//LMP90080_WriteReg(0x20U, (1 << 6) + (0 << 3) + 1);   /* CH0 Config. [6] Select VREFP2 [5:3] AIN0 - Psitive [2:0] AIN1 - Negative */
-	//LMP90080_WriteReg(0x21U, (7 << 4) + (3 << 1));   /* CH1 SPS 7, Gain 0:0, 1:2, 3:8, 4:16 */
-	//LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
-	//while(LMP90080_ReadReg(0x18) == 0xff)
-	//{
-	//	cntADCOutNotAvailable++;
-	//	if(cntADCOutNotAvailable >= 100)
-	//		return 1000;
-	//}
-	temperature = (float)LMP90080_ReadReg2Byte(0x1A);
-	temperature = temperature * 4000 / 65535 / 8;
-	temperature = ((temperature * temperature) * 0.0011) + (temperature * 2.3368) - 244.58;
+  float temperature;
 
-	return temperature;
+  temperature = (float)LMP90080_ReadReg2Byte(0x1A);                                       /* ADC 값 읽기 */
+  temperature = temperature * 4000 / 65535 / 8;                                           /* 저항 값 계산 */
+  temperature = ((temperature * temperature) * 0.0011) + (temperature * 2.3368) - 244.58; /* 온도 계산 */
 
+  return temperature;
 }
 
 void LMP90080_WriteReg(uint8_t regNum, uint8_t regData)
@@ -182,8 +170,8 @@ void LMP90080_ReadADC(uint8_t ChNum)
     return;
   }
 
-  LMP90080_WriteReg(0x1FU, (0 << 6) | (6 << 3) | ChNum);             /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
-  LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
+  LMP90080_WriteReg(0x1FU, (0 << 6) | (6 << 3) | ChNum); /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
+  LMP90080_WriteReg(0x0BU, 0x01U);                       /* 1: Restart conversion. */
   HAL_Delay(1);
   adcDone = LMP90080_ReadReg(0x18);
   LMP90080_ReadReg(0x1A); /* 16-BIT CONVERSION DATA (TWO’S COMPLEMENT) (ADDRESS 0x1A - 0x1B) */
@@ -197,10 +185,9 @@ void LMP90080_Test(void)
   LMP90080_GPIO_Toggle(0);
   LMP90080_WriteReg(0x12U, 0xa);
 
-
   LMP90080_ReadADC(adcNum++);
-  if(adcNum == 7)
-	  adcNum = 0;
+  if (adcNum == 7)
+    adcNum = 0;
 }
 
 /**
@@ -287,10 +274,10 @@ void AIN_TIM_PeriodElapsedCallback(void)
   {
     flag_spi1RxComplete = false;
     /* ADC 값 저장 - 추 후 작성 */
-    if(flag_LMP90080_Converting)
+    if (flag_LMP90080_Converting)
     {
-    	flag_LMP90080_Converting = false;
-    	//LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
+      flag_LMP90080_Converting = false;
+      //LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
     }
   }
 

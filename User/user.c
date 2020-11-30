@@ -34,6 +34,7 @@
 #include "flash.h"
 #include "dio.h"
 #include "led.h"
+#include "dp.h"
 
 #pragma pack(push, 1) /* 1바이트 크기로 정렬  */
 typedef struct
@@ -42,8 +43,8 @@ typedef struct
   uint8_t Rtd_Cycle;  /* 측정주기 sec	  초기값 60 */
   uint8_t Ai_Cycle;   /* 측정주기 sec   초기값 1 */
   uint8_t Di_Cycle;   /* 측정주기 sec   초기값 1 */
-  uint8_t Dp_Cycle;   /* 측정주기 sec   초기값 1 */
-  uint8_t Ps_Cycle;   /* 측정주기 sec   초기값 1 */
+  uint8_t Dp_Cycle;   /* 측정주기 sec   초기값 1 압력센서 */
+  uint8_t Ps_Cycle;   /* 측정주기 sec   초기값 1 차압센서 */
   uint8_t Pm_Cycle;   /* 측정주기 sec   초기값 60 */
   uint16_t Pm_Volt;   /* 파워메터 기준진압                 초기값 220 */
   uint8_t Pm_Current; /* 파워메터 기준전류  100 -> 10.0 A  초기값 50 */
@@ -73,7 +74,8 @@ typedef struct
 static Io_Config_TypeDef stIOConfig; /*!< IO Board 설정값 */
 static Io_Status_TyeDef stIOStatus;  /*!< IO Board 상태정보 */
 
-static uint32_t Raspberry_Timer, Restart_Timer;
+static uint32_t Raspberry_Timer = 0;
+static uint32_t Restart_Timer;
 static uint8_t Reset_sw = 0; // Reset switch
 
 static void user1msLoop(void);
@@ -84,6 +86,9 @@ static void RasPI_Proc(void);
 static void Rs232_Proc(void);
 static void Di_Proc(void);
 static void Ai_Proc(void);
+static void Rtd_Proc(void);
+static void Dp_Proc(void);
+static void Detect_ResetSW(void);
 
 /**
  * @brief 사용자 시작 함수 - 시작시 1회 수행
@@ -175,13 +180,16 @@ static void user1msLoop(void)
     Ai_Proc();
     break;
   case 9: //----------------------------------------------< RTD 센서
-    //Rtd_Proc();
+    Rtd_Proc();
     break;
   case 10: //---------------------------------------------< 커런트 전류
     //Ct_Proc();
     break;
   case 11: //---------------------------------------------< 차압센서
-    //Dp_Proc();
+    Dp_Proc();
+    break;
+  case 12: //---------------------------------------------< RESET 스위치 입력 확인
+	Detect_ResetSW();
     break;
 
   default:
@@ -226,7 +234,12 @@ static void Check_Todo(void)
   case 2: //------------------------------ 라즈베리와의 통신 시간
     if (Raspberry_Timer > 1800)
     {
-      ; // 라즈베리 리셋 (전원 2초간 OFF 후 ON)
+    	RASPI_OFF; // 라즈베리 전원  OFF
+    }
+    else if(Raspberry_Timer > 1802)
+    {
+    	RASPI_ON; // 라즈베리 전원 ON (전원 2초간 OFF 후 ON)
+    	Raspberry_Timer = 0;
     }
   }
 }
@@ -446,9 +459,45 @@ static void Rtd_Proc(void)
   CT = HAL_GetTick();
   if (CT > NT)
   {
-    stIOStatus.Rtd = (uint16_t)LMP90080_ReadRTD(); /* 소수정 이하 추가 */
+    stIOStatus.Rtd = (uint16_t)LMP90080_ReadRTD(); /* 소수점 이하 추가 */
     NT = CT + ((uint32_t)stIOConfig.Rtd_Cycle << 10U);
   }
+}
+
+static void Dp_Proc(void)
+{
+  static uint32_t NT;
+  uint32_t CT;
+
+  CT = HAL_GetTick();
+  if (CT > NT)
+  {
+    stIOStatus.Dp = (uint16_t)DP_Read(); /* 소수점 이하 추가 */
+    NT = CT + ((uint32_t)stIOConfig.Dp_Cycle << 10U);
+  }
+}
+
+static void Detect_ResetSW(void)
+{
+	static uint32_t cntResetTime;
+
+    if(HAL_GPIO_ReadPin(SW_RESET_GPIO_Port, SW_RESET_Pin) == GPIO_PIN_RESET)
+    {
+    	cntResetTime++;
+    }
+    else
+    {
+    	if(cntResetTime > 200) /* 2.7s */
+    	{
+    		Reset_sw = 2;
+    	}
+    	else if(cntResetTime > 10) /* 140ms */
+    	{
+    		Reset_sw = 1;
+    	}
+
+    	cntResetTime = 0;
+    }
 }
 
 uint16_t ADC_Value;

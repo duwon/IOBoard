@@ -58,6 +58,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define MCU_FREQ 68
 #define LD_AI2_Pin GPIO_PIN_5
 #define LD_AI2_GPIO_Port GPIOE
 #define LD_AI1_Pin GPIO_PIN_6
