@@ -412,7 +412,7 @@ static void Rs232_Proc(void)
       break;
     case 0xD2: /* test 2 */
       //printf("TEST2 \r\n");
-      SY7T609_Test();
+      printf("0x01 : %lx\r\n",SY7T609_ReadReg(0x01));
       break;
     case 0xD3: /* SPI Write Reg */
       LMP90080_WriteReg(uart1Message.data[0], uart1Message.data[1]);
@@ -425,6 +425,12 @@ static void Rs232_Proc(void)
       break;
     case 0xD6: /* SPI Read Reg - Read Address */
       printf("%x : %x \r\n", uart1Message.data[0], LMP90080_ReadRegReadAddress(uart1Message.data[0]));
+      break;
+    case 0xE0: /* SPI Read Reg - Read Address */
+      printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadReg(uart1Message.data[0]));
+      break;
+    case 0xE1: /* SPI Read Reg - Indirect Read Address */
+      printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadRegIndirect(uart1Message.data));
       break;
     default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");
@@ -451,7 +457,7 @@ static void Di_Proc(void)
   }
 }
 
-#define RTD_SENSING_AVERAGE_CNT 100
+#define RTD_SENSING_AVERAGE_CNT 20
 static void Rtd_Proc(void)
 {
   static double rtdSum = 0;
@@ -465,7 +471,7 @@ static void Rtd_Proc(void)
   if (CT > NT)
   {
 	rtdAverage = rtdSum / RTD_SENSING_AVERAGE_CNT;
-    stIOStatus.Rtd = ((uint_16)rtdAverage << 8) + ((rtdAverage - (uint8_t)rtdAverage) * 100); /* 소수점 이하 추가 */
+    stIOStatus.Rtd = (((uint16_t)rtdAverage) << 8) + ((rtdAverage - (uint8_t)rtdAverage) * 100); /* 소수점 이하 추가 */
     NT = CT + ((uint32_t)stIOConfig.Rtd_Cycle << 10U);
     rtdSum = 0;
     memset((void*)rtdValue, 0, sizeof(rtdValue));
@@ -473,6 +479,10 @@ static void Rtd_Proc(void)
 
   /* RTD값 합계 구하기 */
   rtdValue[rtdAverageCnt] = LMP90080_ReadRTD();
+  if(rtdValue[rtdAverageCnt] < -200)
+  {
+	  return;
+  }
   rtdSum += rtdValue[rtdAverageCnt++];
   if(rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
   {

@@ -24,7 +24,6 @@ void AIN_TIM_PeriodElapsedCallback(void);
 
 void LMP90080_Test(void);
 void LMP90080_GPIO_Write(uint8_t PinNum, uint8_t PinState);
-void SY7T609_Test(void);
 
 
 void LMP90080_WriteReg(uint8_t regNum, uint8_t regData);
@@ -33,4 +32,11 @@ uint8_t LMP90080_ReadRegReadAddress(uint8_t regNum);
 uint16_t LMP90080_ReadReg2Byte(uint8_t regNum);
 void LMP90080_ReadReg_IT(uint8_t regNum);
 float LMP90080_ReadRTD(void);
+
+
+
+void SY7T609_Test(void);
+uint32_t SY7T609_ReadReg(uint8_t regNum);
+uint32_t SY7T609_ReadRegIndirect(uint8_t *reg);
+
 #endif /* AIO_H__ */
