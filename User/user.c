@@ -143,6 +143,7 @@ void userLoop(void)
  */
 static void user1msLoop(void)
 {
+  LED_Toggle(LD_CC);
   static uint8_t looping = 0;
 
   switch (looping++)
@@ -204,12 +205,12 @@ static void user1msLoop(void)
  */
 static void Check_Todo(void)
 {
-  static int8_t loop = 0;
+  static int8_t looping = 0;
 
   LED_Toggle(LD_RDY); // 1초 간격 브링크
   Raspberry_Timer++;
 
-  switch (loop++)
+  switch (looping++)
   {
   case 0: //------------------------------ Reset SW
     switch (Reset_sw)
@@ -241,6 +242,9 @@ static void Check_Todo(void)
     	RASPI_ON; // 라즈베리 전원 ON (전원 2초간 OFF 후 ON)
     	Raspberry_Timer = 0;
     }
+  default:
+    looping = 0;
+    break;
   }
 }
 
@@ -346,6 +350,7 @@ static void RasPI_Proc(void)
 float temp;
 static void Rs232_Proc(void)
 {
+	uint32_t tmpData;
   if (uart1Message.nextStage == PARSING)
   {
     uint8_t txData[MESSAGE_MAX_SIZE] = {
@@ -430,7 +435,20 @@ static void Rs232_Proc(void)
       printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadReg(uart1Message.data[0]));
       break;
     case 0xE1: /* SPI Read Reg - Indirect Read Address */
-      printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadRegIndirect(uart1Message.data));
+      //printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadRegIndirectTest(uart1Message.data));
+    	if(uart1Message.data[0] == 0x01)
+    	{
+    		tmpData = SY7T609_ReadReg(0x5B);
+    		//printf("Read 0x5B : %x", tmpData );
+    		SY7T609_WriteReg(0x5B, 0x123456);
+    		tmpData = SY7T609_ReadReg(0x5B);
+    		//printf("Write 0x44 : %x", 0x123456);
+    		//printf("Read 0x44 : %x", tmpData);
+    	}
+    	if(uart1Message.data[0] == 0x02)
+    	{
+    		SY7T609_WriteReg(uart1Message.data[3], uart1Message.data[2]);
+    	}
       break;
     default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");

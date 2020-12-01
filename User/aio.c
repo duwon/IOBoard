@@ -20,6 +20,12 @@ static bool flag_spi1RxComplete = false; /*!< AIN SPI - LMP90080 수신 완료 �
 static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 플래그, false로 변경해야 수신 가능 */
 static void LMP90080_Init(void);
 
+static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
+static void SY7T609_WriteRegIndirect(uint8_t regNum, uint32_t regData);
+static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
+static uint32_t SY7T609_ReadRegIndirect(uint8_t reg);
+
+
 uint8_t LMP9000_GPIO_REG = 0U;
 
 /**
@@ -196,62 +202,53 @@ void LMP90080_Test(void)
  * @param regNum:
  * @param regData:
  */
-void SY7T609_WriteReg(uint8_t regNum, uint16_t regData)
+void SY7T609_WriteReg(uint8_t regNum, uint32_t regData)
 {
-  uint8_t spiData[5] = {0x01, regNum, (uint8_t)((regData >> 8U) & 0xFFU), (uint8_t)(regData & 0xFFU), 0};
-  HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Transmit_IT(&hspi3, spiData, 5U);
+	if(regNum < 0x40U)
+	{
+		SY7T609_WriteRegSingle(regNum, regData);
+	}
+	else
+	{
+		SY7T609_WriteRegSingle(0x09, regData);
+		SY7T609_WriteRegSingle(0x0A, regNum | 0xFF0000);
+	}
 }
 
-void SY7T609_ReadReg_IT(uint8_t regNum)
-{
-  if (flag_spi3RxComplete == false)
-  {
-    spi3RxBuffer[0] = 0x01;
-    spi3RxBuffer[1] = (regNum << 2);
-    HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Receive_IT(&hspi3, spi3RxBuffer, 5U); /* [0] : 레지스터, [1] : 레지스터 값 */
-  }
-}
 uint32_t SY7T609_ReadReg(uint8_t regNum)
 {
-  uint32_t spiRxData = 0;
-    spi3RxBuffer[0] = 0x01;
-    spi3RxBuffer[1] = (regNum << 2);
-    HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
-    if(HAL_SPI_Receive(&hspi3, spi3RxBuffer, 5U, 0xFFFF) == HAL_OK) /* [0] : 레지스터, [1] : 레지스터 값 */
-    {
-      spiRxData = (spi3RxBuffer[2]<<16) | (spi3RxBuffer[3]<<8) | (spi3RxBuffer[4]);
-    }
-
-    HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
-
-    return spiRxData;
+	if(regNum < 0x40U)
+	{
+		return SY7T609_ReadRegSingle(regNum);
+	}
+	else
+	{
+		SY7T609_WriteRegSingle(0x0B, regNum);
+		return SY7T609_ReadRegSingle(0x0C);
+	}
 }
 
-uint32_t SY7T609_ReadRegIndirect(uint8_t *reg)
+static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData)
 {
-	  uint8_t spiTxBuffer[5] = {0x01, (0x0B << 2) + 0x02, reg[2], reg[1], reg[0]};
-	  HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
-	  HAL_SPI_Transmit(&hspi3, spiTxBuffer, 5U, 0xFFFF);
-	  HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
+	uint8_t spiTxBuffer[5] = {0x01, (regNum << 2) + 0x02, (regData >> 16)&0xFF, (regData >> 8)&0xFF, (regData >> 0)&0xFF};
+	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi3, spiTxBuffer, 5U, 0xFFFF);
+	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
+}
 
+static uint32_t SY7T609_ReadRegSingle(uint8_t regNum)
+{
 	uint32_t spiRxData = 0;
-	uint8_t spiRxBuffer[5] = {0x01, (0x0C << 2) + 0x00, 0, 0, 0};
+	uint8_t spiRxBuffer[5] = {0x01, (regNum << 2) + 0x00, 0, 0, 0};
 
 	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
 	if(HAL_SPI_Receive(&hspi3, spiRxBuffer, 5U, 0xFFFF) == HAL_OK) /* [0] : 레지스터, [1] : 레지스터 값 */
 	{
-	  spiRxData = (spiRxBuffer[2]<<16) | (spiRxBuffer[3]<<8) | (spiRxBuffer[4]);
+		spiRxData = (spiRxBuffer[2]<<16) | (spiRxBuffer[3]<<8) | (spiRxBuffer[4]);
 	}
 	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
 
 	return spiRxData;
-}
-
-void SY7T609_Test(void)
-{
-  SY7T609_ReadReg(0x01);
 }
 
 /**

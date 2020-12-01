@@ -37,6 +37,6 @@ float LMP90080_ReadRTD(void);
 
 void SY7T609_Test(void);
 uint32_t SY7T609_ReadReg(uint8_t regNum);
-uint32_t SY7T609_ReadRegIndirect(uint8_t *reg);
+void SY7T609_WriteReg(uint8_t regNum, uint32_t regData);
 
 #endif /* AIO_H__ */
