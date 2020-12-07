@@ -69,7 +69,7 @@ void Uart_Init(void)
   */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-
+  __disable_irq();
   if (huart->Instance == USART1) /* RS232 */
   {
     (void)putByteToBuffer(&uart1Buffer, uart1Buffer.rxCh);
@@ -83,6 +83,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   {
     (void)putByteToBuffer(&uart4Buffer, uart4Buffer.rxCh);
   }
+  __enable_irq();
 }
 
 /**
@@ -118,6 +119,7 @@ static void initBuffer(volatile uartFIFO_TypeDef *buffer)
  */
 static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch)
 {
+  __disable_irq();
   ErrorStatus status = ERROR;
 
   if (buffer->count != UART_BUFFER_SIZE) /* 데이터가 버퍼에 가득 찼으면 ERROR 리턴 */
@@ -135,7 +137,7 @@ static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch
   {
     status = ERROR;
   }
-
+  __enable_irq();
   return status;
 }
 
@@ -150,7 +152,6 @@ static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch
 static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t *ch)
 {
   ErrorStatus status = ERROR;
-  __disable_irq();
   if (buffer->count != 0U) /* 버퍼에 데이터가 있으면 */
   {
 
@@ -168,7 +169,7 @@ static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t 
   {
     status = ERROR;
   }
-  __enable_irq();
+
   return status;
 }
 
@@ -312,6 +313,8 @@ void sendMessageToRasPi(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
  * @param txData: Payload Data
  * @param dataLen: Payload Data 길이
  */
+uint8_t debug_txBuffer[100][20];
+uint8_t debug_txBufferIndex = 0;
 void sendMessageToRS232(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
 {
   uint8_t txPacket[MESSAGE_MAX_SIZE] = {
@@ -330,6 +333,7 @@ void sendMessageToRS232(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
   }
 
   HAL_UART_Transmit(&huart1, txPacket, dataLen + 5, 0xFFFF);
+  memcpy(debug_txBuffer[debug_txBufferIndex++], txPacket, 20);
   LED_Toggle(LD_RS232RDY);
 }
 

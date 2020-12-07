@@ -21,9 +21,7 @@ static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 �
 static void LMP90080_Init(void);
 
 static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
-static void SY7T609_WriteRegIndirect(uint8_t regNum, uint32_t regData);
 static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
-static uint32_t SY7T609_ReadRegIndirect(uint8_t reg);
 
 
 uint8_t LMP9000_GPIO_REG = 0U;

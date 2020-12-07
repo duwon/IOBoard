@@ -10,6 +10,7 @@
 
 #include "dp.h"
 #include "i2c.h"
+#include "adc.h"
 #include <stdio.h>
 
 float DP_Read(void)

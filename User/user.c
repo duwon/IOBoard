@@ -36,6 +36,8 @@
 #include "led.h"
 #include "dp.h"
 
+#define RTD_SENSING_AVERAGE_CNT 20
+
 #pragma pack(push, 1) /* 1바이트 크기로 정렬  */
 typedef struct
 {
@@ -82,12 +84,13 @@ static void user1msLoop(void);
 static void Check_Todo(void);
 
 static void setDefaultConfig(void);
-static void RasPI_Proc(void);
-static void Rs232_Proc(void);
-static void Di_Proc(void);
-static void Ai_Proc(void);
-static void Rtd_Proc(void);
-static void Dp_Proc(void);
+static void Proc_RasPI(void);
+static void Proc_RS232(void);
+static void Proc_DI(void);
+static void Proc_AI(void);
+static void Proc_RTD(void);
+static void Proc_DP(void);
+static void Proc_PS(void);
 static void Detect_ResetSW(void);
 
 /**
@@ -112,7 +115,7 @@ void userStart(void)
   {
     setDefaultConfig();
   }
-  //initMessage(&uart4Message, TTL_Proc);
+  //initMessage(&uart1Message, Proc_RS232); /* user1msLoop 함수에서 처리하지 않고 메시지 수신시 바로 응답 용*/
 }
 
 /**
@@ -132,8 +135,10 @@ void userLoop(void)
   if (flag_1mSecTimerOn == true) /* 1ms 마다 1ms Loop 함수 호출 */
   {
     AIN_TIM_PeriodElapsedCallback();
-    flag_1mSecTimerOn = false;
+    Detect_ResetSW(); /* RESET 스위치 입력 확인 */
     user1msLoop();
+    flag_1mSecTimerOn = false;
+    HAL_IWDG_Refresh(&hiwdg);
   }
 }
 
@@ -156,8 +161,8 @@ static void user1msLoop(void)
       Check_Todo();
     }
     break;
-  case 1: //----------------------------------------------<
-    Rs232_Proc();
+  case 1: //----------------------------------------------< RS232 포트
+    Proc_RS232();
     break;
   case 2: //----------------------------------------------<
     //Rs485_Proc();
@@ -166,33 +171,32 @@ static void user1msLoop(void)
     //Console_Proc();
     break;
   case 4: //----------------------------------------------< 라즈베리파이 통신
-    RasPI_Proc();
+    Proc_RasPI();
     break;
   case 5: //----------------------------------------------< LoRa
     //LoRa_Proc();
     break;
   case 6: //----------------------------------------------< DI
-    Di_Proc();
+    Proc_DI();
     break;
   case 7: //----------------------------------------------< DO
     //Do_Proc();
     break;
   case 8: //----------------------------------------------< AI
-    Ai_Proc();
+    Proc_AI();
     break;
   case 9: //----------------------------------------------< RTD 센서
-    Rtd_Proc();
+    Proc_RTD();
     break;
   case 10: //---------------------------------------------< 커런트 전류
     //Ct_Proc();
     break;
   case 11: //---------------------------------------------< 차압센서
-    Dp_Proc();
+    Proc_DP();
     break;
-  case 12: //---------------------------------------------< RESET 스위치 입력 확인
-	Detect_ResetSW();
+  case 12: //---------------------------------------------< 압력센서
+    Proc_PS();
     break;
-
   default:
     looping = 0;
     break;
@@ -215,8 +219,9 @@ static void Check_Todo(void)
   case 0: //------------------------------ Reset SW
     switch (Reset_sw)
     {
-    case 1:
+    case 1: // 1초
       Reset_sw = 0;
+      NVIC_SystemReset(); /* 소프트웨어 시셋 실행 */
       break;
     case 2: // 3 초 이상
       Reset_sw = 0;
@@ -235,12 +240,12 @@ static void Check_Todo(void)
   case 2: //------------------------------ 라즈베리와의 통신 시간
     if (Raspberry_Timer > 1800)
     {
-    	RASPI_OFF; // 라즈베리 전원  OFF
+      RASPI_OFF; // 1800초 동안 응답 없으면 라즈베리 전원  OFF
     }
-    else if(Raspberry_Timer > 1802)
+    else if (Raspberry_Timer > 1802)
     {
-    	RASPI_ON; // 라즈베리 전원 ON (전원 2초간 OFF 후 ON)
-    	Raspberry_Timer = 0;
+      RASPI_ON; // 1802초에 라즈베리 전원 ON (전원 2초간 OFF 후 ON)
+      Raspberry_Timer = 0;
     }
   default:
     looping = 0;
@@ -271,7 +276,7 @@ static void setDefaultConfig(void)
  * @brief 라즈베리파이 통신 메시지 처리
  *
  */
-static void RasPI_Proc(void)
+static void Proc_RasPI(void)
 {
   static bool flag_receiveFWImage = false;
 
@@ -284,7 +289,6 @@ static void RasPI_Proc(void)
     switch (uart4Message.msgID)
     {
     case MSGCMD_REQUEST_TIME:
-      //printf("MSGCMD_REQUEST_TIME\r\n");
       Raspberry_Timer = 0;
       RTC_Get(txData); /* txData[5:0] */
       txData[6] = VERSION_MAJOR;
@@ -292,7 +296,6 @@ static void RasPI_Proc(void)
       sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
       break;
     case MSGCMD_UPDATE_CONFIG:
-      //printf("MSGCMD_UPDATE_CONFIG\r\n");
       if (memcmp(&stIOConfig, uart4Message.data, sizeof(stIOConfig)) != 0)
       {
         memcpy(&stIOConfig, uart4Message.data, sizeof(stIOConfig));
@@ -301,11 +304,9 @@ static void RasPI_Proc(void)
       sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_REQUEST_CONFIG:
-      //printf("MSGCMD_REQUEST_CONFIG\r\n");
       sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_UPDATE_TIME:
-      //printf("MSGCMD_UPDATE_TIME\r\n");
       RTC_Set(uart4Message.data);
       RTC_Get(txData); /* txData[5:0] */
       txData[6] = VERSION_MAJOR;
@@ -313,7 +314,6 @@ static void RasPI_Proc(void)
       sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
       break;
     case MSGCMD_UPDATE_FW:
-      //printf("MSGCMD_UPDATE_FW\r\n");
       flag_receiveFWImage = true;
       procFirmwareUpdate(uart4Message.data);
       break;
@@ -324,7 +324,6 @@ static void RasPI_Proc(void)
       printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
       break;
     case MSGCMD_SET_DO:
-      //printf("MSGCMD_SET_DO\r\n");
       DO_Write(0, uart4Message.data[0]);
       DO_Write(1, uart4Message.data[1]);
       stIOStatus.Do[0] = uart4Message.data[0];
@@ -344,23 +343,25 @@ static void RasPI_Proc(void)
   {
     flag_sendStatusTimerOn = false;
     sendMessageToRasPi(MSGCMD_INFO_IOVALUE, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
-    //sendMessageToRS232(MSGCMD_INFO_IOVALUE, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
   }
 }
-float temp;
-static void Rs232_Proc(void)
+
+/**
+ * @brief RS232 통신 메시지 처리
+ * 
+ */
+static void Proc_RS232(void)
 {
-	uint32_t tmpData;
   if (uart1Message.nextStage == PARSING)
   {
     uint8_t txData[MESSAGE_MAX_SIZE] = {
         0,
     };
 
+	uint32_t tmpData;
     switch (uart1Message.msgID)
     {
     case MSGCMD_REQUEST_TIME:
-      //printf("MSGCMD_REQUEST_TIME\r\n");
       Raspberry_Timer = 0;
       RTC_Get(txData); /* txData[5:0] */
       txData[6] = VERSION_MAJOR;
@@ -368,7 +369,6 @@ static void Rs232_Proc(void)
       sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
       break;
     case MSGCMD_UPDATE_CONFIG:
-      //printf("MSGCMD_UPDATE_CONFIG\r\n");
       if (memcmp(&stIOConfig, uart1Message.data, sizeof(stIOConfig)) != 0)
       {
         memcpy(&stIOConfig, uart1Message.data, sizeof(stIOConfig));
@@ -377,11 +377,9 @@ static void Rs232_Proc(void)
       sendMessageToRS232(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_REQUEST_CONFIG:
-      //printf("MSGCMD_REQUEST_CONFIG\r\n");
       sendMessageToRS232(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_UPDATE_TIME:
-      //printf("MSGCMD_UPDATE_TIME\r\n");
       RTC_Set(uart1Message.data);
       RTC_Get(txData); /* txData[5:0] */
       txData[6] = VERSION_MAJOR;
@@ -389,7 +387,6 @@ static void Rs232_Proc(void)
       sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
       break;
     case MSGCMD_UPDATE_FW:
-      //printf("MSGCMD_UPDATE_FW\r\n");
       procFirmwareUpdate(uart1Message.data);
       break;
     case MSGCMD_UPDATE_WATEMETER_CAL:
@@ -399,7 +396,6 @@ static void Rs232_Proc(void)
       printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
       break;
     case MSGCMD_SET_DO:
-      //printf("MSGCMD_SET_DO\r\n");
       DO_Write(0, uart1Message.data[0]);
       DO_Write(1, uart1Message.data[1]);
       stIOStatus.Do[0] = uart1Message.data[0];
@@ -412,12 +408,11 @@ static void Rs232_Proc(void)
       //printf("TEST1 \r\n");
       //LMP90080_Test();
       //PSENOR_Read();
-      temp = LMP90080_ReadRTD();
-      printf("Temp : %d\r\n", (int)(temp * 100));
+      printf("Temp : %d\r\n", (int)(LMP90080_ReadRTD() * 100));
       break;
     case 0xD2: /* test 2 */
       //printf("TEST2 \r\n");
-      printf("0x01 : %lx\r\n",SY7T609_ReadReg(0x01));
+      printf("0x01 : %lx\r\n", SY7T609_ReadReg(0x01));
       break;
     case 0xD3: /* SPI Write Reg */
       LMP90080_WriteReg(uart1Message.data[0], uart1Message.data[1]);
@@ -435,20 +430,18 @@ static void Rs232_Proc(void)
       printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadReg(uart1Message.data[0]));
       break;
     case 0xE1: /* SPI Read Reg - Indirect Read Address */
-      //printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadRegIndirectTest(uart1Message.data));
-    	if(uart1Message.data[0] == 0x01)
-    	{
-    		tmpData = SY7T609_ReadReg(0x5B);
-    		//printf("Read 0x5B : %x", tmpData );
-    		SY7T609_WriteReg(0x5B, 0x123456);
-    		tmpData = SY7T609_ReadReg(0x5B);
-    		//printf("Write 0x44 : %x", 0x123456);
-    		//printf("Read 0x44 : %x", tmpData);
-    	}
-    	if(uart1Message.data[0] == 0x02)
-    	{
-    		SY7T609_WriteReg(uart1Message.data[3], uart1Message.data[2]);
-    	}
+      if (uart1Message.data[0] == 0x01)
+      {
+        tmpData = SY7T609_ReadReg(0x5B);
+        //printf("Read 0x5B : %x", tmpData );
+        SY7T609_WriteReg(0x5B, 0x123456);
+        tmpData = SY7T609_ReadReg(0x5B);
+        //printf("Read 0x44 : %x", tmpData);
+      }
+      if (uart1Message.data[0] == 0x02)
+      {
+        SY7T609_WriteReg(uart1Message.data[3], uart1Message.data[2]);
+      }
       break;
     default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");
@@ -462,7 +455,7 @@ static void Rs232_Proc(void)
  * @brief 디지털 입력 처리
  *
  */
-static void Di_Proc(void)
+static void Proc_DI(void)
 {
   static uint32_t NT;
   uint32_t CT;
@@ -475,12 +468,17 @@ static void Di_Proc(void)
   }
 }
 
-#define RTD_SENSING_AVERAGE_CNT 20
-static void Rtd_Proc(void)
+/**
+ * @brief RTD 온도센서
+ * 
+ */
+static void Proc_RTD(void)
 {
   static double rtdSum = 0;
   static uint8_t rtdAverageCnt = 0;
-  static float rtdValue[RTD_SENSING_AVERAGE_CNT] = {0,};
+  static float rtdValue[RTD_SENSING_AVERAGE_CNT] = {
+      0,
+  };
   static uint32_t NT = 0;
   uint32_t CT;
   double rtdAverage = 0;
@@ -488,28 +486,36 @@ static void Rtd_Proc(void)
   CT = HAL_GetTick();
   if (CT > NT)
   {
-	rtdAverage = rtdSum / RTD_SENSING_AVERAGE_CNT;
+    rtdAverage = rtdSum / RTD_SENSING_AVERAGE_CNT;
     stIOStatus.Rtd = (((uint16_t)rtdAverage) << 8) + ((rtdAverage - (uint8_t)rtdAverage) * 100); /* 소수점 이하 추가 */
     NT = CT + ((uint32_t)stIOConfig.Rtd_Cycle << 10U);
     rtdSum = 0;
-    memset((void*)rtdValue, 0, sizeof(rtdValue));
+    memset((void *)rtdValue, 0, sizeof(rtdValue));
   }
 
   /* RTD값 합계 구하기 */
-  rtdValue[rtdAverageCnt] = LMP90080_ReadRTD();
-  if(rtdValue[rtdAverageCnt] < -200)
+  if (stIOConfig.Rtd_Cycle != 0U) /* 측정 주기가 0이면 동작 안함 */
   {
-	  return;
+    rtdValue[rtdAverageCnt] = LMP90080_ReadRTD();
+
+    if ((rtdValue[rtdAverageCnt] < -200) || (rtdValue[rtdAverageCnt] > 400)) /* -200 ~ 400 값만 정상 */
+    {
+      return;
+    }
+    rtdSum += rtdValue[rtdAverageCnt++];
+    if (rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
+    {
+      rtdAverageCnt = 0;
+    }
+    rtdSum -= rtdValue[rtdAverageCnt];
   }
-  rtdSum += rtdValue[rtdAverageCnt++];
-  if(rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
-  {
-	  rtdAverageCnt = 0;
-  }
-  rtdSum -= rtdValue[rtdAverageCnt];
 }
 
-static void Dp_Proc(void)
+/**
+ * @brief 차압센서
+ * 
+ */
+static void Proc_DP(void)
 {
   static uint32_t NT;
   uint32_t CT;
@@ -522,33 +528,13 @@ static void Dp_Proc(void)
   }
 }
 
-static void Detect_ResetSW(void)
+/**
+ * @brief Analog 입력 처리
+ * 
+ */
+static void Proc_AI(void)
 {
-	static uint32_t cntResetTime;
-
-    if(HAL_GPIO_ReadPin(SW_RESET_GPIO_Port, SW_RESET_Pin) == GPIO_PIN_RESET)
-    {
-    	cntResetTime++;
-    }
-    else
-    {
-    	if(cntResetTime > 200) /* 2.7s */
-    	{
-    		Reset_sw = 2;
-    	}
-    	else if(cntResetTime > 10) /* 140ms */
-    	{
-    		Reset_sw = 1;
-    	}
-
-    	cntResetTime = 0;
-    }
-}
-
-uint16_t ADC_Value;
-bool flag_ADC_Value = false;
-static void Ai_Proc(void)
-{
+  static bool flag_ADC_Value = false;
   static int doutCount = 0;
   doutCount++;
 
@@ -563,9 +549,49 @@ static void Ai_Proc(void)
   }
 }
 
+/**
+ * @brief 압력센서 처리
+ * 
+ */
+static void Proc_PS(void)
+{
+
+}
+
+/**
+ * @brief 보드의 스위치 누름 시간 판단
+ * 
+ */
+static void Detect_ResetSW(void)
+{
+  static uint32_t cntResetTime = 0U;
+
+  if (HAL_GPIO_ReadPin(SW_RESET_GPIO_Port, SW_RESET_Pin) == GPIO_PIN_RESET)
+  {
+    cntResetTime++; //user1msLoop 함수의 
+  }
+  else
+  {
+    if (cntResetTime > 3000U) /* 3s */
+    {
+      Reset_sw = 2U;
+    }
+    else if (cntResetTime > 1000U) /* 1s */
+    {
+      Reset_sw = 1U;
+    }
+
+    cntResetTime = 0U;
+  }
+}
+
 uint16_t debug_adcValue[1000];
 int debug_adcValue_Index = 0;
-
+/**
+ * @brief GPIO 인터럽트 처리
+ * 
+ * @param GPIO_Pin: GPIO 입력 핀 번호
+ */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == GPIO_PIN_4) /* PC4 */

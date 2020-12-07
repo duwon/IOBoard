@@ -26,28 +26,26 @@ bool flag_sendStatusTimerOn = false; /*< 1초 마다 상태 전송 Flag */
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  static uint32_t count_sendStatus = 0;
-  
-  if (htim->Instance == TIM5) /* 1s */
-  {
-    flag_1SecTimerOn = true;
-  }
+  static uint32_t count_sendStatus = 0U;
 
-  if (htim->Instance == TIM6) /* 1ms */
+  if (htim->Instance == TIM7) /* 0.1ms - AI 인터럽트 호출*/
+  {
+    flag_100uSecTimerOn = true;
+  }
+  else if (htim->Instance == TIM6) /* 1ms */
   {
     count_sendStatus++;
     if (count_sendStatus > SEND_STATUS_INTERVAL)
     {
       flag_sendStatusTimerOn = true;
-      count_sendStatus = 0;
+      count_sendStatus = 0U;
     }
 
     flag_1mSecTimerOn = true;
   }
-
-  if (htim->Instance == TIM7) /* 0.1ms - AI 인터럽트 호출*/
+  else if (htim->Instance == TIM5) /* 1s */
   {
-    flag_100uSecTimerOn = true;
+    flag_1SecTimerOn = true;
   }
 }
 
@@ -59,7 +57,7 @@ void Timer_Init(void)
 {
   HAL_TIM_Base_Start_IT(&htim5); /* 1s 타이머 인터럽트 시작 */
   HAL_TIM_Base_Start_IT(&htim6); /* 1ms 타이머 인터럽트 시작 */
-  HAL_TIM_Base_Start_IT(&htim7); /* 0.1ms 타이머 인터럽트 시작 */
+  //HAL_TIM_Base_Start_IT(&htim7); /* 0.1ms 타이머 인터럽트 시작 */
 }
 
 /** @defgroup DIO Digital Input/Output 제어 함수
