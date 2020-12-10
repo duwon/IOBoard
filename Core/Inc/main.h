@@ -80,6 +80,12 @@ void Error_Handler(void);
 #define AIN_DRDYB_Pin GPIO_PIN_4
 #define AIN_DRDYB_GPIO_Port GPIOC
 #define AIN_DRDYB_EXTI_IRQn EXTI4_IRQn
+#define ADC_MPX5010_Pin GPIO_PIN_5
+#define ADC_MPX5010_GPIO_Port GPIOC
+#define ADC_AIN2_Pin GPIO_PIN_0
+#define ADC_AIN2_GPIO_Port GPIOB
+#define ADC_AIN1_Pin GPIO_PIN_1
+#define ADC_AIN1_GPIO_Port GPIOB
 #define DI1_Pin GPIO_PIN_7
 #define DI1_GPIO_Port GPIOE
 #define DI2_Pin GPIO_PIN_8
@@ -144,8 +150,6 @@ void Error_Handler(void);
 #define RASPI_RX4_GPIO_Port GPIOC
 #define LD_CC_Pin GPIO_PIN_0
 #define LD_CC_GPIO_Port GPIOD
-#define LD_AO_Pin GPIO_PIN_1
-#define LD_AO_GPIO_Port GPIOD
 #define LD_DO2_Pin GPIO_PIN_3
 #define LD_DO2_GPIO_Port GPIOD
 #define LD_DO1_Pin GPIO_PIN_4

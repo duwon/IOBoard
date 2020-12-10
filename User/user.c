@@ -104,7 +104,7 @@ void userStart(void)
 #ifdef DEBUG
   printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
 #endif
-  //AIO_Init();
+  AIO_Init();
   RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
   Uart_Init();  /* UART 통신 시작 */
   LED_Init();   /* LED 초기화 */
@@ -602,7 +602,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == GPIO_PIN_4) /* PC4 */
   {
-    LMP90080_ReadReg_IT(0x1A);
+    //LMP90080_ReadReg_IT(0x1A);
   }
 
   if (GPIO_Pin == GPIO_PIN_5) /* PC5 - 임시 테스트용 */

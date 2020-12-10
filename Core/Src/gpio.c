@@ -61,8 +61,7 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, LORA_RFC_Pin|LORA_RESET__Pin|LORA_EN_Pin|LD_CC_Pin
-                          |LD_AO_Pin|LD_DO2_Pin|LD_DO1_Pin|DO2_Pin
-                          |DO1_Pin, GPIO_PIN_RESET);
+                          |LD_DO2_Pin|LD_DO1_Pin|DO2_Pin|DO1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD_RDY_GPIO_Port, LD_RDY_Pin, GPIO_PIN_RESET);
@@ -83,11 +82,11 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PCPin PC5 */
-  GPIO_InitStruct.Pin = AIN_DRDYB_Pin|GPIO_PIN_5;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = AIN_DRDYB_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(AIN_DRDYB_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin */
   GPIO_InitStruct.Pin = DI1_Pin|DI2_Pin|DI3_Pin|DI4_Pin;
@@ -103,11 +102,9 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(LORA_NSS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin PDPin PDPin
-                           PDPin PDPin PDPin PDPin
-                           PDPin */
+                           PDPin PDPin PDPin PDPin */
   GPIO_InitStruct.Pin = LORA_RFC_Pin|LORA_RESET__Pin|LORA_EN_Pin|LD_CC_Pin
-                          |LD_AO_Pin|LD_DO2_Pin|LD_DO1_Pin|DO2_Pin
-                          |DO1_Pin;
+                          |LD_DO2_Pin|LD_DO1_Pin|DO2_Pin|DO1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -137,9 +134,6 @@ void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 
