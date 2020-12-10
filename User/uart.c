@@ -119,7 +119,6 @@ static void initBuffer(volatile uartFIFO_TypeDef *buffer)
  */
 static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch)
 {
-  __disable_irq();
   ErrorStatus status = ERROR;
 
   if (buffer->count != UART_BUFFER_SIZE) /* 데이터가 버퍼에 가득 찼으면 ERROR 리턴 */
@@ -137,7 +136,7 @@ static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch
   {
     status = ERROR;
   }
-  __enable_irq();
+
   return status;
 }
 
@@ -151,12 +150,13 @@ static ErrorStatus putByteToBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t ch
  */
 static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t *ch)
 {
+  __disable_irq();
   ErrorStatus status = ERROR;
   if (buffer->count != 0U) /* 버퍼에 데이터가 있으면 */
   {
 
     *ch = buffer->buff[buffer->out]; /* 버퍼에서 1Byte 읽음 */
-    buffer->buff[buffer->out] = 0U;
+    //buffer->buff[buffer->out] = 0U;
     buffer->out++;
     buffer->count--;                     /* 버퍼에 저장된 데이터 갯수 1 감소 */
     if (buffer->out == UART_BUFFER_SIZE) /* 끝 인덱스가 버퍼의 끝이면 */
@@ -169,7 +169,7 @@ static ErrorStatus getByteFromBuffer(volatile uartFIFO_TypeDef *buffer, uint8_t 
   {
     status = ERROR;
   }
-
+  __enable_irq();
   return status;
 }
 
@@ -187,7 +187,11 @@ void initMessage(message_TypeDef *messageFrame, void (*parsingFunction)(void))
 
 static uint8_t calChecksum(message_TypeDef *messageFrame)
 {
+#if 0
+  uint8_t tmpCalChecksum = MESSAGE_STX ^ MESSAGE_STX ^ MESSAGE_ETX ^ messageFrame->msgID ^ messageFrame->datasize;
+#else
   uint8_t tmpCalChecksum = MESSAGE_STX ^ MESSAGE_ETX ^ messageFrame->msgID ^ messageFrame->datasize;
+#endif
   for (int i = 0; i < messageFrame->datasize; i++)
   {
     tmpCalChecksum ^= messageFrame->data[i];
@@ -198,15 +202,32 @@ static uint8_t calChecksum(message_TypeDef *messageFrame)
 
 void procMesssage(message_TypeDef *messageFrame, uartFIFO_TypeDef *buffer)
 {
+  //static int cntSTX = 0;
   switch (messageFrame->nextStage)
   {
   case START:
     if (getByteFromBuffer(buffer, &(buffer->buffCh)) == SUCCESS)
     {
+#if 0
       if (buffer->buffCh == MESSAGE_STX)
       {
-        messageFrame->nextStage = MSGID;
+    	  cntSTX++;
       }
+      else
+      {
+    	  cntSTX = 0;
+      }
+      if(cntSTX == 2)
+      {
+    	  messageFrame->nextStage = MSGID;
+    	  cntSTX = 0;
+      }
+#else
+      if (buffer->buffCh == MESSAGE_STX)
+      {
+          messageFrame->nextStage = MSGID;
+      }
+#endif
     }
     break;
   case MSGID:
@@ -224,9 +245,13 @@ void procMesssage(message_TypeDef *messageFrame, uartFIFO_TypeDef *buffer)
       {
         messageFrame->nextStage = END;
       }
-      else
+      else if((messageFrame->datasize == 194) || (messageFrame->datasize < 20))
       {
         messageFrame->nextStage = DATA;
+      }
+      else
+      {
+    	messageFrame->nextStage = START;
       }
     }
     break;

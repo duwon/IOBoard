@@ -80,6 +80,8 @@ static uint32_t Raspberry_Timer = 0;
 static uint32_t Restart_Timer;
 static uint8_t Reset_sw = 0; // Reset switch
 
+static bool flag_receiveFWImage = false;
+
 static void user1msLoop(void);
 static void Check_Todo(void);
 
@@ -101,9 +103,8 @@ void userStart(void)
 {
 #ifdef DEBUG
   printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
-  //HAL_Delay(1000);
 #endif
-  AIO_Init();
+  //AIO_Init();
   RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
   Uart_Init();  /* UART 통신 시작 */
   LED_Init();   /* LED 초기화 */
@@ -132,13 +133,24 @@ void userLoop(void)
     flag_100uSecTimerOn = false;
   }
 
-  if (flag_1mSecTimerOn == true) /* 1ms 마다 1ms Loop 함수 호출 */
+  if (flag_receiveFWImage == true) /* 펌웨어 업로드 요청 시 다른 작업 수행하지 않고 메시지 처리만 */
+  {
+    Proc_RasPI(); /* 라즈베리파이 수신 메시지 처리 */
+    Proc_RS232(); /* RS232 포트 수신 메시지 처리 */
+  }
+  else if (flag_1mSecTimerOn == true) /* 1ms 마다 1msLoop 함수 호출 */
   {
     AIN_TIM_PeriodElapsedCallback();
     Detect_ResetSW(); /* RESET 스위치 입력 확인 */
     user1msLoop();
     flag_1mSecTimerOn = false;
+  }
+
+  if (flag_1SecTimerOn == true) /* 1초 간격 처리 */
+  {
+    Check_Todo();
     HAL_IWDG_Refresh(&hiwdg);
+    flag_1SecTimerOn = false;
   }
 }
 
@@ -148,18 +160,12 @@ void userLoop(void)
  */
 static void user1msLoop(void)
 {
-  LED_Toggle(LD_CC);
   static uint8_t looping = 0;
 
   switch (looping++)
   {
   case 0: //---------------------------------------------< 1초 간격 처리
-    if (flag_1SecTimerOn == true)
-    {
-      flag_1SecTimerOn = false;
-      HAL_IWDG_Refresh(&hiwdg);
-      Check_Todo();
-    }
+
     break;
   case 1: //----------------------------------------------< RS232 포트
     Proc_RS232();
@@ -278,7 +284,6 @@ static void setDefaultConfig(void)
  */
 static void Proc_RasPI(void)
 {
-  static bool flag_receiveFWImage = false;
 
   if (uart4Message.nextStage == PARSING)
   {
@@ -387,6 +392,7 @@ static void Proc_RS232(void)
       sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
       break;
     case MSGCMD_UPDATE_FW:
+      flag_receiveFWImage = true;
       procFirmwareUpdate(uart1Message.data);
       break;
     case MSGCMD_UPDATE_WATEMETER_CAL:
