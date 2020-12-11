@@ -14,9 +14,14 @@
 #include "gpio.h"
 #include "spi.h"
 
+#define RTD_SENSING_AVERAGE_CNT 20
+
+int16_t rtdValue[RTD_SENSING_AVERAGE_CNT];
+int32_t rtdSum = 0;
+
 uint8_t spi1RxBuffer[10];                /*!< AIN SPI - LMP90080 수신 버퍼 */
 static bool flag_spi1RxComplete = false; /*!< AIN SPI - LMP90080 수신 완료 플래그, false로 변경해야 수신 가능 */
-static uint8_t LMP9000_GPIO_REG = 0U;
+static uint8_t LMP9000_GPIO_REG = 0U;    /*!< LM90080 GPIO 상태 값 */
 
 static void LMP90080_Init(void);
 
@@ -34,13 +39,9 @@ static void LMP90080_Init(void)
 	                                                 [4] Clock Select. 0: Internal, 1: Selects external clock
 	                                                 [3:0] RTC Current Select, 1mA */
   LMP90080_WriteReg(0x17U, 0x00U);
-  LMP90080_WriteReg(0x1FU, (0 << 6) + (2 << 3) + 0); /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
-  LMP90080_WriteReg(0x20U, (1 << 6) + (0 << 3) + 1); /* CH0 Config. [6] Select VREFP2 [5:3] AIN0 - Psitive [2:0] AIN1 - Negative */
-  LMP90080_WriteReg(0x21U, (7 << 4) + (3 << 1));     /* CH1 SPS 7, Gain 0:0, 1:2, 3:8, 4:16 */
-  LMP90080_WriteReg(0x22U, (0 << 6) + (2 << 3) + 7); /* CH1 Input. AIN2 - Psitive, AIN7 - Negative */
-  LMP90080_WriteReg(0x23U, 0x70);                    /* CH2 SPS, Gain 1 */
-  LMP90080_WriteReg(0x24U, (0 << 6) + (3 << 3) + 7); /* CH2 Input. AIN3 - Psitive, AIN7 - Negative */
-  LMP90080_WriteReg(0x25U, 0x70);                    /* CH2 SPS, Gain 1 */
+  LMP90080_WriteReg(0x1FU, (0 << 6) + (0 << 3) + 0); /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
+  LMP90080_WriteReg(0x20U, (1 << 6) + (0 << 3) + 1); /* CH0 configuration. [6] Select VREFP2 [5:3] AIN0 - Positive [2:0] AIN1 - Negative */
+  LMP90080_WriteReg(0x21U, (7 << 4) + (1 << 1));     /* CH1 SPS 7, Gain 0:0, 1:2, 2:4, 3:8, 4:16 */
 }
 
 float LMP90080_ReadRTD(void)
@@ -48,7 +49,7 @@ float LMP90080_ReadRTD(void)
   float temperature;
 
   temperature = (float)LMP90080_ReadReg2Byte(0x1A);                                       /* ADC 값 읽기 */
-  temperature = temperature * 4000 / 65535 / 8;                                           /* 저항 값 계산 */
+  temperature = temperature * 4000 / 65535 / 2;                                           /* 저항 값 계산 */
   temperature = ((temperature * temperature) * 0.0011) + (temperature * 2.3368) - 244.58; /* 온도 계산 */
 
   return temperature;
@@ -180,10 +181,32 @@ void RTD_Init(void)
 /**
  * @brief 3선식 RTD 온도센서의 현재 온도값을 읽는다.
  * 
- * @return int8_t @ 온도 값 : -50~150
+ * @return int16_t @ 온도 값 * 100
  */
-int8_t RTD_Read(void)
+int16_t RTD_Read(void)
 {
-  int8_t temperature = 0;
+  int16_t temperature = 0;
+  temperature = rtdSum / RTD_SENSING_AVERAGE_CNT;
+  rtdSum = 0;
+  memset((void *)rtdValue, 0, sizeof(rtdValue));
   return temperature;
+}
+
+void RTDSTart(void)
+{
+  static uint8_t rtdAverageCnt = 0;
+  
+  /* RTD값 합계 구하기 */
+    rtdValue[rtdAverageCnt] = (int16_t)(LMP90080_ReadRTD() * 100);
+
+    if ((rtdValue[rtdAverageCnt] < -20000) || (rtdValue[rtdAverageCnt] > 30000)) /* -200 ~ 300 값만 정상 */
+    {
+      return;
+    }
+    rtdSum += rtdValue[rtdAverageCnt++];
+    if (rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
+    {
+      rtdAverageCnt = 0;
+    }
+    rtdSum -= rtdValue[rtdAverageCnt];
 }

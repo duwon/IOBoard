@@ -18,28 +18,30 @@
 
 #define AI_SENSING_AVERAGE_CNT 100
 #define PS_SENSING_AVERAGE_CNT 100
+#define VREF_SENSING_AVERAGE_CNT 100
 
-uint16_t ADCAiValue[2][AI_SENSING_AVERAGE_CNT];
-uint16_t ADCPsValue[PS_SENSING_AVERAGE_CNT];
+uint16_t AiValue[2][AI_SENSING_AVERAGE_CNT];
+uint16_t PsValue[PS_SENSING_AVERAGE_CNT];
 static uint32_t AISum[2];
 static uint32_t PSSum;
 
 static bool flag_ADCDone = false;
-static uint16_t ADCValue[3];
+static uint16_t ADCValue[4];
 
 /**
  * @brief Analog Input 
  * 
  * @param No : 포트 번호 : 1, 2
- * @return float : 전류 값
+ * @return uint16_t : 전류 값 * 100
  */
-float AI_Read(int8_t No)
+uint16_t AI_Read(int8_t No)
 {
-  float analogValue = 0.0f;
+  uint16_t analogValue = 0.0f;
   if (No < 2)
   {
-    analogValue = (float)(AISum[No] / AI_SENSING_AVERAGE_CNT) * 1000 * 3.3f / 4096.0f / 20.0f;
-    memset((void *)ADCAiValue[No], 0, sizeof(ADCAiValue[No]));
+    //analogValue = (float)(AISum[No] / AI_SENSING_AVERAGE_CNT) * 1000 * VrefVoltage / 4096.0f / 20.0f; /* I = V/R = (평균 ADC값 * mA(1000) * Vref / 분해능) / 저항 값 */
+	analogValue = AISum[No] / AI_SENSING_AVERAGE_CNT;
+    memset((void *)AiValue[No], 0, sizeof(AiValue[No]));
     AISum[No] = 0;
     }
   return analogValue;
@@ -49,7 +51,7 @@ float PS_Read(void)
 {
   float analogValue = 0.0f;
   analogValue = (float)(PSSum / AI_SENSING_AVERAGE_CNT) * 3.3f / 4096.0f;
-  memset((void *)ADCPsValue, 0, sizeof(ADCPsValue));
+  memset((void *)PsValue, 0, sizeof(PsValue));
   PSSum = 0;
   return analogValue;
 }
@@ -82,15 +84,13 @@ void ADCStart(void)
 
   if (flag_ADCDone == true)
   {
+	float Vref = 1.2f * 4096.0f / (float)(ADCValue[3]);
     flag_ADCDone = false;
+    AiValue[0][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000 * 100 / 4096.0f / 20.0f);
+    AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[1]) * Vref * 1000 * 100 / 4096.0f / 20.0f);
 
-    ADCAiValue[0][AIAverageCnt] = ADCValue[0];
-    ADCAiValue[1][AIAverageCnt] = ADCValue[1];
-    ADCPsValue[PSAverageCnt] = ADCValue[2];
-
-    AISum[0] += ADCAiValue[0][AIAverageCnt];
-    AISum[1] += ADCAiValue[1][AIAverageCnt++];
-    PSSum += ADCPsValue[PSAverageCnt++];
+    AISum[0] += AiValue[0][AIAverageCnt];
+    AISum[1] += AiValue[1][AIAverageCnt++];
 
     if (AIAverageCnt >= AI_SENSING_AVERAGE_CNT)
     {
@@ -101,10 +101,10 @@ void ADCStart(void)
       PSAverageCnt = 0;
     }
 
-    AISum[0] -= ADCAiValue[0][AIAverageCnt];
-    AISum[1] -= ADCAiValue[1][AIAverageCnt];
-    PSSum -= ADCPsValue[PSAverageCnt];
+
+    AISum[0] -= AiValue[0][AIAverageCnt];
+    AISum[1] -= AiValue[1][AIAverageCnt];
   }
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADCValue, 3); /* ADC 시작 */
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADCValue, 4); /* ADC 시작 */
 }

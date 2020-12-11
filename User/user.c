@@ -38,8 +38,6 @@
 #include "rtd.h"
 #include "current.h"
 
-#define RTD_SENSING_AVERAGE_CNT 20
-
 #pragma pack(push, 1) /* 1바이트 크기로 정렬  */
 typedef struct
 {
@@ -67,7 +65,7 @@ typedef struct
   float Apparent;      /*!< 피상전력 */
   float Active_Energy; /*!< 유효전력량 */
   //-------------------------------- Odd I/O 상태값
-  uint16_t Rtd;   /*!< MSB=정수, LSB=소수점  온도*/
+  int16_t Rtd;   /*!< MSB=정수, LSB=소수점  온도*/
   uint16_t Dp;    /*!< MSB=정수, LSB=소수점  차압센서 */
   uint16_t Ps;    /*!< MSB=정수, LSB=소수점  압력센서 */
   uint16_t Ai[2]; /*!< MSB=정수, LSB=소수점 */
@@ -90,6 +88,7 @@ static void Check_Todo(void);
 static void setDefaultConfig(void);
 static void Proc_RasPI(void);
 static void Proc_RS232(void);
+static void Proc_DO(void);
 static void Proc_DI(void);
 static void Proc_AI(void);
 static void Proc_RTD(void);
@@ -145,6 +144,7 @@ void userLoop(void)
   if(flag_10mSecTimerOn == true)
   {
     ADCStart(); /* ADC 수행 */
+    RTDSTart(); /* RTD 수행 */
     flag_10mSecTimerOn = false;
   }
 
@@ -188,7 +188,7 @@ static void user1msLoop(void)
     Proc_DI();
     break;
   case 7: //----------------------------------------------< DO
-    //Do_Proc();
+    Proc_DO();
     break;
   case 8: //----------------------------------------------< AI
     Proc_AI();
@@ -480,47 +480,37 @@ static void Proc_DI(void)
   }
 }
 
-float rtdValue[RTD_SENSING_AVERAGE_CNT] = {
-    0,
-};
+static void Proc_DO(void)
+{
+  static uint32_t NT = 0;
+  uint32_t CT;
+
+  CT = HAL_GetTick();
+  if (CT > NT)
+  {
+    for (int i = 0; i < 2; i++)
+    {
+      DO_Write(i, stIOConfig.Do[i]);
+      stIOStatus.Do[i] = stIOConfig.Do[i];
+    }
+    NT = CT + 1000;
+  }
+}
+
 /**
  * @brief RTD 온도센서
  * 
  */
 static void Proc_RTD(void)
 {
-  static double rtdSum = 0;
-  static uint8_t rtdAverageCnt = 0;
-
   static uint32_t NT = 0;
   uint32_t CT;
-  double rtdAverage = 0;
 
   CT = HAL_GetTick();
   if (CT > NT)
   {
-    rtdAverage = rtdSum / RTD_SENSING_AVERAGE_CNT;
-    stIOStatus.Rtd = (((uint16_t)rtdAverage) << 8) + ((rtdAverage - (uint8_t)rtdAverage) * 100); /* 소수점 이하 추가 */
+    stIOStatus.Rtd = RTD_Read(); /* 소수점 이하 추가 */
     NT = CT + ((uint32_t)stIOConfig.Rtd_Cycle << 10U);
-    rtdSum = 0;
-    memset((void *)rtdValue, 0, sizeof(rtdValue));
-  }
-
-  /* RTD값 합계 구하기 */
-  if (stIOConfig.Rtd_Cycle != 0U) /* 측정 주기가 0이면 동작 안함 */
-  {
-    rtdValue[rtdAverageCnt] = LMP90080_ReadRTD();
-
-    if ((rtdValue[rtdAverageCnt] < -200) || (rtdValue[rtdAverageCnt] > 400)) /* -200 ~ 400 값만 정상 */
-    {
-      return;
-    }
-    rtdSum += rtdValue[rtdAverageCnt++];
-    if (rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
-    {
-      rtdAverageCnt = 0;
-    }
-    rtdSum -= rtdValue[rtdAverageCnt];
   }
 }
 
@@ -549,15 +539,12 @@ static void Proc_AI(void)
 {
 	  static uint32_t NT;
 	  uint32_t CT;
-    float AIValue;
 
 	  CT = HAL_GetTick();
 	  if (CT > NT)
 	  {
-      AIValue = AI_Read(0);
-	    stIOStatus.Ai[0] = (((uint16_t)AIValue) << 8) + ((AIValue - (uint8_t)AIValue) * 100); /* 소수점 이하 추가 */
-      AIValue = AI_Read(1);
-	    stIOStatus.Ai[1] = (((uint16_t)AIValue) << 8) + ((AIValue - (uint8_t)AIValue) * 100); /* 소수점 이하 추가 */
+	    stIOStatus.Ai[0] = AI_Read(0);
+	    stIOStatus.Ai[1] = AI_Read(1);
 	    NT = CT + ((uint32_t)stIOConfig.Ai_Cycle << 10U);
 	  }
 }

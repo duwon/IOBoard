@@ -8,7 +8,7 @@
 #define ADC_SAMPLE_COUNT (ADC_SAMPLE_1S_COUNT * ADC_COUNT) /*!< 샘플링 갯수 */
 
 void AIO_Init(void);
-float AI_Read(int8_t No);
+uint16_t AI_Read(int8_t No);
 void ADCStart(void);
 
 #endif /* AIO_H__ */
