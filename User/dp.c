@@ -21,7 +21,7 @@ float DP_Read(void)
 	  float dpTemperature = 0U; /*!> 온도 : 0.1도 해상도 */
 
 	  uint8_t i2cRxData[4] = {0xFFU,};
-	  HAL_I2C_Master_Receive(&hi2c2, (0x28 << 1) + 0x01 , i2cRxData, 4, 0xFFFF);
+	  HAL_I2C_Master_Receive(&hi2c2, (0x28 << 1) + 0x01 , i2cRxData, 4, 0xF);
 
 	  dpState = (i2cRxData[0] >> 6U) & 0x03U;
 	  dpBar = ((i2cRxData[0] & 0x3FU) << 8U) + i2cRxData[1];

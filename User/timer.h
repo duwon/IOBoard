@@ -7,7 +7,7 @@
 
 extern bool flag_1SecTimerOn;
 extern bool flag_1mSecTimerOn;
-extern bool flag_100uSecTimerOn;
+extern bool flag_10mSecTimerOn;
 extern bool flag_sendStatusTimerOn;
 
 void Timer_Init(void);

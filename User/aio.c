@@ -11,20 +11,21 @@
 #include <string.h>
 #include <stdio.h>
 #include "aio.h"
-#include "tim.h"
-#include "spi.h"
+#include "uart.h"
+#include "adc.h"
+#include "uart.h"
+#include "timer.h"
 
-uint8_t spi1RxBuffer[10];                /*!< AIN SPI - LMP90080 수신 버퍼 */
-uint8_t spi3RxBuffer[10];                /*!< EMP SPI - SY7T609 수신 버퍼 */
-static bool flag_spi1RxComplete = false; /*!< AIN SPI - LMP90080 수신 완료 플래그, false로 변경해야 수신 가능 */
-static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 플래그, false로 변경해야 수신 가능 */
-static void LMP90080_Init(void);
+#define AI_SENSING_AVERAGE_CNT 100
+#define PS_SENSING_AVERAGE_CNT 100
 
-static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
-static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
+uint16_t ADCAiValue[2][AI_SENSING_AVERAGE_CNT];
+uint16_t ADCPsValue[PS_SENSING_AVERAGE_CNT];
+static uint32_t AISum[2];
+static uint32_t PSSum;
 
-
-uint8_t LMP9000_GPIO_REG = 0U;
+static bool flag_ADCDone = false;
+static uint16_t ADCValue[3];
 
 /**
  * @brief Analog Input 
@@ -35,286 +36,75 @@ uint8_t LMP9000_GPIO_REG = 0U;
 float AI_Read(int8_t No)
 {
   float analogValue = 0.0f;
+  if (No < 2)
+  {
+    analogValue = (float)(AISum[No] / AI_SENSING_AVERAGE_CNT) * 1000 * 3.3f / 4096.0f / 20.0f;
+    memset((void *)ADCAiValue[No], 0, sizeof(ADCAiValue[No]));
+    AISum[No] = 0;
+    }
+  return analogValue;
+}
+
+float PS_Read(void)
+{
+  float analogValue = 0.0f;
+  analogValue = (float)(PSSum / AI_SENSING_AVERAGE_CNT) * 3.3f / 4096.0f;
+  memset((void *)ADCPsValue, 0, sizeof(ADCPsValue));
+  PSSum = 0;
   return analogValue;
 }
 
 void AIO_Init(void)
 {
-  LMP90080_Init();
-}
-
-static void LMP90080_Init(void)
-{
-  LMP9000_GPIO_REG = 0x00U;
-  LMP90080_WriteReg(0x00U, 0xC3U);            /* RESET. 0xC3: Register and conversion reset */
-  LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
-  LMP90080_WriteReg(0x0EU, 0x3FU);            /* [6:0] Set GPIO Output */
-  LMP90080_WriteReg(0x0FU, LMP9000_GPIO_REG); /* [6:0] Set GPIO Low */
-  LMP90080_WriteReg(0x10, 0x02U);             /* Background Calibration Control.  BgcalMode2: Offset Correction / Gain Correction */
-  LMP90080_WriteReg(0x11, 0xA3U);             /* SPI DATA READY BAR CONTROL (ADDRESS 0x11) */
-  LMP90080_WriteReg(0x12, 0x0AU);             /* [5] External clock detection. 1: "External-Clock Detection" is bypassed
-	                                                 [4] Clock Select. 0: Internal, 1: Selects external clock
-	                                                 [3:0] RTC Current Select, 1mA */
-  LMP90080_WriteReg(0x17U, 0x00U);
-  LMP90080_WriteReg(0x1FU, (0 << 6) + (2 << 3) + 0); /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
-  LMP90080_WriteReg(0x20U, (1 << 6) + (0 << 3) + 1); /* CH0 Config. [6] Select VREFP2 [5:3] AIN0 - Psitive [2:0] AIN1 - Negative */
-  LMP90080_WriteReg(0x21U, (7 << 4) + (3 << 1));     /* CH1 SPS 7, Gain 0:0, 1:2, 3:8, 4:16 */
-  LMP90080_WriteReg(0x22U, (0 << 6) + (2 << 3) + 7); /* CH1 Input. AIN2 - Psitive, AIN7 - Negative */
-  LMP90080_WriteReg(0x23U, 0x70);                    /* CH2 SPS, Gain 1 */
-  LMP90080_WriteReg(0x24U, (0 << 6) + (3 << 3) + 7); /* CH2 Input. AIN3 - Psitive, AIN7 - Negative */
-  LMP90080_WriteReg(0x25U, 0x70);                    /* CH2 SPS, Gain 1 */
-}
-
-float LMP90080_ReadRTD(void)
-{
-  float temperature;
-
-  temperature = (float)LMP90080_ReadReg2Byte(0x1A);                                       /* ADC 값 읽기 */
-  temperature = temperature * 4000 / 65535 / 8;                                           /* 저항 값 계산 */
-  temperature = ((temperature * temperature) * 0.0011) + (temperature * 2.3368) - 244.58; /* 온도 계산 */
-
-  return temperature;
-}
-
-void LMP90080_WriteReg(uint8_t regNum, uint8_t regData)
-{
-  uint8_t spiData[4];
-  spiData[0] = 0x10U;                  /* 0x10: Write Address, 0x90: Read Address */
-  spiData[1] = (regNum >> 4U) & 0x0FU; /* [4:0] Upper Address */
-  spiData[2] = (0U << 7U);             /* 0: Write, 1: Read */
-  spiData[2] |= (0U << 5U);            /* 1Byte Write */
-  spiData[2] |= (regNum & 0x0FU);      /* [4:0] Lower Address */
-  spiData[3] = regData;
-
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Transmit(&hspi1, spiData, 4U, 0xFFFF);
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_SET);
-}
-
-uint8_t LMP90080_ReadReg(uint8_t regNum)
-{
-  spi1RxBuffer[0] = 0x10U;                  /* 0x10: Write Address, 0x90: Read Address */
-  spi1RxBuffer[1] = (regNum >> 4U) & 0x0FU; /* [4:0] Upper Address */
-  spi1RxBuffer[2] = (1U << 7U);             /* 0: Write, 1: Read */
-  spi1RxBuffer[2] |= (1U << 5U);            /* 0: 1byte, 1: 2byte, 2, nByte Read */
-  spi1RxBuffer[2] |= (regNum & 0x0F);       /* [4:0] Lower Address */
-
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Receive(&hspi1, spi1RxBuffer, 5U, 0xFFFF);
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_SET);
-
-  return spi1RxBuffer[3];
-}
-
-uint16_t LMP90080_ReadReg2Byte(uint8_t regNum)
-{
-  spi1RxBuffer[0] = 0x10U;                  /* 0x10: Write Address, 0x90: Read Address */
-  spi1RxBuffer[1] = (regNum >> 4U) & 0x0FU; /* [4:0] Upper Address */
-  spi1RxBuffer[2] = (1U << 7U);             /* 0: Write, 1: Read */
-  spi1RxBuffer[2] |= (1U << 5U);            /* 0: 1byte, 1: 2byte, 2, nByte Read */
-  spi1RxBuffer[2] |= (regNum & 0x0F);       /* [4:0] Lower Address */
-
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Receive(&hspi1, spi1RxBuffer, 5U, 0xFFFF);
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_SET);
-
-  return (spi1RxBuffer[3] << 8) + spi1RxBuffer[4];
-}
-
-uint8_t LMP90080_ReadRegReadAddress(uint8_t regNum)
-{
-  spi1RxBuffer[0] = 0x90U;                  /* 0x10: Write Address, 0x90: Read Address */
-  spi1RxBuffer[1] = (regNum >> 4U) & 0x0FU; /* [4:0] Upper Address */
-  spi1RxBuffer[2] = (1U << 7U);             /* 0: Write, 1: Read */
-  spi1RxBuffer[2] |= (1U << 5U);            /* 0: 1byte, 1: 2byte, 2, nByte Read */
-  spi1RxBuffer[2] |= (regNum & 0x0F);       /* [4:0] Lower Address */
-
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Receive(&hspi1, spi1RxBuffer, 5U, 0xFFFF);
-  HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_SET);
-
-  return spi1RxBuffer[3];
-}
-
-void LMP90080_ReadReg_IT(uint8_t regNum)
-{
-  if (flag_spi1RxComplete == false)
-  {
-    spi1RxBuffer[0] = 0x10U;                  /* 0x10: Write Address, 0x90: Read Address */
-    spi1RxBuffer[1] = (regNum >> 4U) & 0x0FU; /* [4:0] Upper Address */
-    spi1RxBuffer[2] = (1U << 7U);             /* 0: Write, 1: Read */
-    spi1RxBuffer[2] |= (1U << 5U);            /* 0: 1byte, 1: 2byte, 2, nByte Read */
-    spi1RxBuffer[2] |= (regNum & 0x0F);       /* [4:0] Lower Address */
-
-    HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Receive_IT(&hspi1, spi1RxBuffer, 5U);
-  }
-}
-
-void LMP90080_GPIO_Write(uint8_t PinNum, uint8_t PinState)
-{
-  LMP9000_GPIO_REG &= ~(1U << PinNum);
-  LMP9000_GPIO_REG |= (PinState << PinNum);
-  LMP90080_WriteReg(0x0FU, LMP9000_GPIO_REG);
-}
-
-void LMP90080_GPIO_Toggle(uint8_t PinNum)
-{
-  LMP9000_GPIO_REG ^= (1U << PinNum);
-  LMP90080_WriteReg(0x0FU, LMP9000_GPIO_REG);
-}
-
-bool flag_LMP90080_Converting = false;
-uint8_t adcDone = 0;
-uint8_t adcCh6Config = 0;
-void LMP90080_ReadADC(uint8_t ChNum)
-{
-  if (ChNum > 6)
-  {
-    return;
-  }
-
-  LMP90080_WriteReg(0x1FU, (0 << 6) | (6 << 3) | ChNum); /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
-  LMP90080_WriteReg(0x0BU, 0x01U);                       /* 1: Restart conversion. */
+  HAL_ADCEx_Calibration_Start(&hadc1); /* ADC Calibration */
   HAL_Delay(1);
-  adcDone = LMP90080_ReadReg(0x18);
-  LMP90080_ReadReg(0x1A); /* 16-BIT CONVERSION DATA (TWO’S COMPLEMENT) (ADDRESS 0x1A - 0x1B) */
-  adcCh6Config = LMP90080_ReadReg(0x2D);
-}
-
-uint8_t adcNum = 0;
-void LMP90080_Test(void)
-{
-  LMP90080_GPIO_Toggle(1);
-  LMP90080_GPIO_Toggle(0);
-  LMP90080_WriteReg(0x12U, 0xa);
-
-  LMP90080_ReadADC(adcNum++);
-  if (adcNum == 7)
-    adcNum = 0;
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADCValue, 3); /* ADC 시작 */
 }
 
 /**
- * @brief EMP Register 쓰기
+ * @brief ADC 완료 인터럽트
  * 
- * @param regNum:
- * @param regData:
+ * @param hadc 
  */
-void SY7T609_WriteReg(uint8_t regNum, uint32_t regData)
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-	if(regNum < 0x40U)
-	{
-		SY7T609_WriteRegSingle(regNum, regData);
-	}
-	else
-	{
-		SY7T609_WriteRegSingle(0x09, regData);
-		SY7T609_WriteRegSingle(0x0A, regNum | 0xFF0000);
-	}
-}
-
-uint32_t SY7T609_ReadReg(uint8_t regNum)
-{
-	if(regNum < 0x40U)
-	{
-		return SY7T609_ReadRegSingle(regNum);
-	}
-	else
-	{
-		SY7T609_WriteRegSingle(0x0B, regNum);
-		return SY7T609_ReadRegSingle(0x0C);
-	}
-}
-
-static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData)
-{
-	uint8_t spiTxBuffer[5] = {0x01, (regNum << 2) + 0x02, (regData >> 16)&0xFF, (regData >> 8)&0xFF, (regData >> 0)&0xFF};
-	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi3, spiTxBuffer, 5U, 0xFFFF);
-	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
-}
-
-static uint32_t SY7T609_ReadRegSingle(uint8_t regNum)
-{
-	uint32_t spiRxData = 0;
-	uint8_t spiRxBuffer[5] = {0x01, (regNum << 2) + 0x00, 0, 0, 0};
-
-	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_RESET);
-	if(HAL_SPI_Receive(&hspi3, spiRxBuffer, 5U, 0xFFFF) == HAL_OK) /* [0] : 레지스터, [1] : 레지스터 값 */
-	{
-		spiRxData = (spiRxBuffer[2]<<16) | (spiRxBuffer[3]<<8) | (spiRxBuffer[4]);
-	}
-	HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
-
-	return spiRxData;
+  flag_ADCDone = true;
 }
 
 /**
- * @brief SPI RX 인터럽트
- * 
- * @param hspi 
- */
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-  if (hspi->Instance == SPI1) /* AIN - LMP90080 */
-  {
-    HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_SET);
-    //flag_spi1RxComplete = true;
-  }
-  if (hspi->Instance == SPI2) /* LORA */
-  {
-    HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET);
-  }
-  if (hspi->Instance == SPI3) /* EMP - SY7T609 */
-  {
-    HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
-    flag_spi3RxComplete = true;
-  }
-}
-
-/**
- * @brief SPI TX 인터럽트
- * 
- * @param hspi 
- */
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-  if (hspi->Instance == SPI1) /* AIN - LMP90080 */
-  {
-    HAL_GPIO_WritePin(AIN_NSS_GPIO_Port, AIN_NSS_Pin, GPIO_PIN_SET);
-  }
-  if (hspi->Instance == SPI3) /* EMP - SY7T609 */
-  {
-    HAL_GPIO_WritePin(PM_NSS_GPIO_Port, PM_NSS_Pin, GPIO_PIN_SET);
-  }
-}
-
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-}
-
-#include "uart.h"
-/**
- * @brief 100us 인터럽트. Analog input 데이터 저장
+ * @brief AI 및 PS의 센싱 값 저장
  * 
  */
-void AIN_TIM_PeriodElapsedCallback(void)
+void ADCStart(void)
 {
-  if (flag_spi1RxComplete == true) /* AIN - LMP90080 데이터터 수신 완료 */
+  static uint8_t AIAverageCnt = 0;
+  static uint8_t PSAverageCnt = 0;
+
+  if (flag_ADCDone == true)
   {
-    flag_spi1RxComplete = false;
-    /* ADC 값 저장 - 추 후 작성 */
-    if (flag_LMP90080_Converting)
+    flag_ADCDone = false;
+
+    ADCAiValue[0][AIAverageCnt] = ADCValue[0];
+    ADCAiValue[1][AIAverageCnt] = ADCValue[1];
+    ADCPsValue[PSAverageCnt] = ADCValue[2];
+
+    AISum[0] += ADCAiValue[0][AIAverageCnt];
+    AISum[1] += ADCAiValue[1][AIAverageCnt++];
+    PSSum += ADCPsValue[PSAverageCnt++];
+
+    if (AIAverageCnt >= AI_SENSING_AVERAGE_CNT)
     {
-      flag_LMP90080_Converting = false;
-      //LMP90080_WriteReg(0x0BU, 0x01U);            /* 1: Restart conversion. */
+      AIAverageCnt = 0;
     }
+    if (PSAverageCnt >= PS_SENSING_AVERAGE_CNT)
+    {
+      PSAverageCnt = 0;
+    }
+
+    AISum[0] -= ADCAiValue[0][AIAverageCnt];
+    AISum[1] -= ADCAiValue[1][AIAverageCnt];
+    PSSum -= ADCPsValue[PSAverageCnt];
   }
 
-  if (flag_spi3RxComplete == true) /* AIN - LMP90080 데이터터 수신 완료 */
-  {
-    flag_spi3RxComplete = false;
-    /* ADC 값 저장 - 추 후 작성 */
-    sendMessageToRS232(MSGCMD_RESPONSE_WATMETER_VAL, spi3RxBuffer, 5);
-  }
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADCValue, 3); /* ADC 시작 */
 }

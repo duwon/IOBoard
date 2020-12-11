@@ -35,6 +35,8 @@
 #include "dio.h"
 #include "led.h"
 #include "dp.h"
+#include "rtd.h"
+#include "current.h"
 
 #define RTD_SENSING_AVERAGE_CNT 20
 
@@ -104,15 +106,15 @@ void userStart(void)
 #ifdef DEBUG
   printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
 #endif
-  AIO_Init();
+  AIO_Init();   /* 내부 ADC 초기화 */
   RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
   Uart_Init();  /* UART 통신 시작 */
   LED_Init();   /* LED 초기화 */
   Timer_Init(); /* 타이머 시작 */
-  RASPI_ON;
+  RASPI_ON;     /* 라즈베리파이 전원 출력 */
 
   memcpy(&stIOConfig, (unsigned char *)FLASH_SYSTEM_CONFIG_ADDRESS, sizeof(stIOConfig)); /*  IO보드 설정값 불러 오기 */
-  if ((stIOConfig.Pm_Hz == 0) || stIOConfig.Pm_Hz == 255)
+  if ((stIOConfig.Pm_Hz == 0) || stIOConfig.Pm_Hz == 255)                                /* IO보드 설정값이 없으면 기본 값으로 설정 */
   {
     setDefaultConfig();
   }
@@ -128,11 +130,6 @@ void userLoop(void)
   procMesssage(&uart4Message, &uart4Buffer); /* 라즈베리파이(UART4) 메시지 처리 */
   procMesssage(&uart1Message, &uart1Buffer); /* RS232(UART1) 메시지 처리 */
 
-  if (flag_100uSecTimerOn == true) /* 100us 마다 ADC */
-  {
-    flag_100uSecTimerOn = false;
-  }
-
   if (flag_receiveFWImage == true) /* 펌웨어 업로드 요청 시 다른 작업 수행하지 않고 메시지 처리만 */
   {
     Proc_RasPI(); /* 라즈베리파이 수신 메시지 처리 */
@@ -140,10 +137,15 @@ void userLoop(void)
   }
   else if (flag_1mSecTimerOn == true) /* 1ms 마다 1msLoop 함수 호출 */
   {
-    AIN_TIM_PeriodElapsedCallback();
     Detect_ResetSW(); /* RESET 스위치 입력 확인 */
-    user1msLoop();
+    user1msLoop(); /* 사용자 1ms Loop함수 호출 */
     flag_1mSecTimerOn = false;
+  }
+
+  if(flag_10mSecTimerOn == true)
+  {
+    ADCStart(); /* ADC 수행 */
+    flag_10mSecTimerOn = false;
   }
 
   if (flag_1SecTimerOn == true) /* 1초 간격 처리 */
@@ -170,7 +172,7 @@ static void user1msLoop(void)
   case 1: //----------------------------------------------< RS232 포트
     Proc_RS232();
     break;
-  case 2: //----------------------------------------------<
+  case 2: //----------------------------------------------< RS485 포트
     //Rs485_Proc();
     break;
   case 3: //----------------------------------------------< 디버그 포트
@@ -362,8 +364,8 @@ static void Proc_RS232(void)
     uint8_t txData[MESSAGE_MAX_SIZE] = {
         0,
     };
+    uint32_t tmpData = 0;
 
-	uint32_t tmpData;
     switch (uart1Message.msgID)
     {
     case MSGCMD_REQUEST_TIME:
@@ -448,6 +450,10 @@ static void Proc_RS232(void)
       {
         SY7T609_WriteReg(uart1Message.data[3], uart1Message.data[2]);
       }
+      if (uart1Message.data[0] == 0x03)
+      {
+        printf("%x : %lx \r\n", uart1Message.data[1], SY7T609_ReadReg(uart1Message.data[1]));
+      }
       break;
     default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");
@@ -474,6 +480,9 @@ static void Proc_DI(void)
   }
 }
 
+float rtdValue[RTD_SENSING_AVERAGE_CNT] = {
+    0,
+};
 /**
  * @brief RTD 온도센서
  * 
@@ -482,9 +491,7 @@ static void Proc_RTD(void)
 {
   static double rtdSum = 0;
   static uint8_t rtdAverageCnt = 0;
-  static float rtdValue[RTD_SENSING_AVERAGE_CNT] = {
-      0,
-  };
+
   static uint32_t NT = 0;
   uint32_t CT;
   double rtdAverage = 0;
@@ -540,19 +547,19 @@ static void Proc_DP(void)
  */
 static void Proc_AI(void)
 {
-  static bool flag_ADC_Value = false;
-  static int doutCount = 0;
-  doutCount++;
+	  static uint32_t NT;
+	  uint32_t CT;
+    float AIValue;
 
-  if (doutCount == 100)
-  {
-    if (flag_ADC_Value == true)
-    {
-      LMP90080_ReadReg_IT(0x1A);
-      flag_ADC_Value = false;
-    }
-    doutCount = 0;
-  }
+	  CT = HAL_GetTick();
+	  if (CT > NT)
+	  {
+      AIValue = AI_Read(0);
+	    stIOStatus.Ai[0] = (((uint16_t)AIValue) << 8) + ((AIValue - (uint8_t)AIValue) * 100); /* 소수점 이하 추가 */
+      AIValue = AI_Read(1);
+	    stIOStatus.Ai[1] = (((uint16_t)AIValue) << 8) + ((AIValue - (uint8_t)AIValue) * 100); /* 소수점 이하 추가 */
+	    NT = CT + ((uint32_t)stIOConfig.Ai_Cycle << 10U);
+	  }
 }
 
 /**
@@ -561,7 +568,6 @@ static void Proc_AI(void)
  */
 static void Proc_PS(void)
 {
-
 }
 
 /**
@@ -574,7 +580,7 @@ static void Detect_ResetSW(void)
 
   if (HAL_GPIO_ReadPin(SW_RESET_GPIO_Port, SW_RESET_Pin) == GPIO_PIN_RESET)
   {
-    cntResetTime++; //user1msLoop 함수의 
+    cntResetTime++; //user1msLoop 함수의
   }
   else
   {
