@@ -45,8 +45,8 @@ typedef struct
   uint8_t Rtd_Cycle;  /* 측정주기 sec	  초기값 60 */
   uint8_t Ai_Cycle;   /* 측정주기 sec   초기값 1 */
   uint8_t Di_Cycle;   /* 측정주기 sec   초기값 1 */
-  uint8_t Dp_Cycle;   /* 측정주기 sec   초기값 1 압력센서 */
-  uint8_t Ps_Cycle;   /* 측정주기 sec   초기값 1 차압센서 */
+  uint8_t Dp_Cycle;   /* 측정주기 sec   초기값 5 압력센서 */
+  uint8_t Ps_Cycle;   /* 측정주기 sec   초기값 5 차압센서 */
   uint8_t Pm_Cycle;   /* 측정주기 sec   초기값 60 */
   uint16_t Pm_Volt;   /* 파워메터 기준진압                 초기값 220 */
   uint8_t Pm_Current; /* 파워메터 기준전류  100 -> 10.0 A  초기값 50 */
@@ -272,8 +272,8 @@ static void setDefaultConfig(void)
   stIOConfig.Rtd_Cycle = 60;  /*!< 측정주기 sec	  초기값 60 */
   stIOConfig.Ai_Cycle = 1;    /*!< 측정주기 sec   초기값 1 */
   stIOConfig.Di_Cycle = 1;    /*!< 측정주기 sec   초기값 1 */
-  stIOConfig.Dp_Cycle = 1;    /*!< 측정주기 sec   초기값 1   차압센서  (0 = Disable) */
-  stIOConfig.Ps_Cycle = 1;    /*!< 측정주기 sec   초기값 1   압력센서  (0 = Disable) */
+  stIOConfig.Dp_Cycle = 5;    /*!< 측정주기 sec   초기값 5   차압센서  (0 = Disable) */
+  stIOConfig.Ps_Cycle = 5;    /*!< 측정주기 sec   초기값 5   압력센서  (0 = Disable) */
   stIOConfig.Pm_Cycle = 15;   /*!< 측정주기 sec   초기값 15 */
   stIOConfig.Pm_Volt = 220;   /*!< 파워메터 기준진압                 초기값 220 */
   stIOConfig.Pm_Current = 50; /*!< 파워메터 기전전류  100 -> 10.0 A  초기값 50 */
