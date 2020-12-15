@@ -41,7 +41,7 @@ static void LMP90080_Init(void)
   LMP90080_WriteReg(0x17U, 0x00U);
   LMP90080_WriteReg(0x1FU, (0 << 6) + (0 << 3) + 0); /* [7:6] CH_SCAN_SEL [5:3] LAST CH [2:0] FIRST CH */
   LMP90080_WriteReg(0x20U, (1 << 6) + (0 << 3) + 1); /* CH0 configuration. [6] Select VREFP2 [5:3] AIN0 - Positive [2:0] AIN1 - Negative */
-  LMP90080_WriteReg(0x21U, (7 << 4) + (1 << 1));     /* CH1 SPS 7, Gain 0:0, 1:2, 2:4, 3:8, 4:16 */
+  LMP90080_WriteReg(0x21U, (7 << 4) + (3 << 1));     /* CH1 SPS 7, Gain 0:0, 1:2, 2:4, 3:8, 4:16 */
 }
 
 float LMP90080_ReadRTD(void)
@@ -49,7 +49,7 @@ float LMP90080_ReadRTD(void)
   float temperature;
 
   temperature = (float)LMP90080_ReadReg2Byte(0x1A);                                       /* ADC 값 읽기 */
-  temperature = temperature * 4000 / 65535 / 2;                                           /* 저항 값 계산 */
+  temperature = temperature * 4000 / 65535 / 8;                                           /* 저항 값 계산 */
   temperature = ((temperature * temperature) * 0.0011) + (temperature * 2.3368) - 244.58; /* 온도 계산 */
 
   return temperature;

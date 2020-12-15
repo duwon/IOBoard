@@ -94,6 +94,7 @@ static void Proc_AI(void);
 static void Proc_RTD(void);
 static void Proc_DP(void);
 static void Proc_PS(void);
+static void Proc_Ct(void);
 static void Detect_ResetSW(void);
 
 /**
@@ -110,6 +111,7 @@ void userStart(void)
   Uart_Init();  /* UART 통신 시작 */
   LED_Init();   /* LED 초기화 */
   Timer_Init(); /* 타이머 시작 */
+  Current_Init(); /* EMP(전력측정) 초기화 */
   RASPI_ON;     /* 라즈베리파이 전원 출력 */
 
   memcpy(&stIOConfig, (unsigned char *)FLASH_SYSTEM_CONFIG_ADDRESS, sizeof(stIOConfig)); /*  IO보드 설정값 불러 오기 */
@@ -197,7 +199,7 @@ static void user1msLoop(void)
     Proc_RTD();
     break;
   case 10: //---------------------------------------------< 커런트 전류
-    //Ct_Proc();
+    Proc_Ct();
     break;
   case 11: //---------------------------------------------< 차압센서
     Proc_DP();
@@ -442,7 +444,7 @@ static void Proc_RS232(void)
       {
         tmpData = SY7T609_ReadReg(0x5B);
         //printf("Read 0x5B : %x", tmpData );
-        SY7T609_WriteReg(0x5B, 0x123456);
+        //SY7T609_WriteReg(0x5B, 0x123456);
         tmpData = SY7T609_ReadReg(0x5B);
         //printf("Read 0x44 : %x", tmpData);
       }
@@ -450,10 +452,15 @@ static void Proc_RS232(void)
       {
         SY7T609_WriteReg(uart1Message.data[3], uart1Message.data[2]);
       }
-      if (uart1Message.data[0] == 0x03)
+      if (uart1Message.data[0] == 0x03) // read Reg
       {
         printf("%x : %lx \r\n", uart1Message.data[1], SY7T609_ReadReg(uart1Message.data[1]));
       }
+      if (uart1Message.data[0] == 0x03) // Write Reg
+	{
+    	  SY7T609_WriteReg(uart1Message.data[1], uart1Message.data[3]);
+	  printf("Write %x : %lx \r\n", uart1Message.data[1], uart1Message.data[1]);
+	}
       break;
     default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");
@@ -555,6 +562,20 @@ static void Proc_AI(void)
  */
 static void Proc_PS(void)
 {
+
+}
+
+static void Proc_Ct(void)
+{
+  	static uint32_t NT;
+	  uint32_t CT;
+
+	  CT = HAL_GetTick();
+	  if (CT > NT)
+	  {
+	    Current_Read((float *)&stIOStatus);
+	    NT = CT + ((uint32_t)stIOConfig.Pm_Cycle << 10U);
+	  }
 }
 
 /**
