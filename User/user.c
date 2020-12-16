@@ -562,7 +562,15 @@ static void Proc_AI(void)
  */
 static void Proc_PS(void)
 {
+	  static uint32_t NT;
+	  uint32_t CT;
 
+	  CT = HAL_GetTick();
+	  if (CT > NT)
+	  {
+	    stIOStatus.Ps = PS_Read();
+	    NT = CT + ((uint32_t)stIOConfig.Ps_Cycle << 10U);
+	  }
 }
 
 static void Proc_Ct(void)

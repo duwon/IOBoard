@@ -11,4 +11,6 @@ void AIO_Init(void);
 uint16_t AI_Read(int8_t No);
 void ADCStart(void);
 
+uint16_t PS_Read(void);
+
 #endif /* AIO_H__ */

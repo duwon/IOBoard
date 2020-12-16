@@ -36,7 +36,7 @@ static uint16_t ADCValue[4];
  */
 uint16_t AI_Read(int8_t No)
 {
-  uint16_t analogValue = 0.0f;
+  uint16_t analogValue = 0U;
   if (No < 2)
   {
     //analogValue = (float)(AISum[No] / AI_SENSING_AVERAGE_CNT) * 1000 * VrefVoltage / 4096.0f / 20.0f; /* I = V/R = (평균 ADC값 * mA(1000) * Vref / 분해능) / 저항 값 */
@@ -47,13 +47,13 @@ uint16_t AI_Read(int8_t No)
   return analogValue;
 }
 
-float PS_Read(void)
+uint16_t PS_Read(void)
 {
-  float analogValue = 0.0f;
-  analogValue = (float)(PSSum / AI_SENSING_AVERAGE_CNT) * 3.3f / 4096.0f;
+  uint16_t calValue = 0U;
+  calValue = (uint16_t)((float)((PSSum / AI_SENSING_AVERAGE_CNT) - 10) * 4.444f);
   memset((void *)PsValue, 0, sizeof(PsValue));
   PSSum = 0;
-  return analogValue;
+  return calValue;
 }
 
 void AIO_Init(void)
@@ -88,9 +88,11 @@ void ADCStart(void)
     flag_ADCDone = false;
     AiValue[0][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000 * 100 / 4096.0f / 20.0f);
     AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[1]) * Vref * 1000 * 100 / 4096.0f / 20.0f);
+    PsValue[PSAverageCnt] = (uint16_t)((float)ADCValue[2] * Vref * 100 /4096.0f);
 
     AISum[0] += AiValue[0][AIAverageCnt];
     AISum[1] += AiValue[1][AIAverageCnt++];
+    PSSum += PsValue[PSAverageCnt++];
 
     if (AIAverageCnt >= AI_SENSING_AVERAGE_CNT)
     {
@@ -104,6 +106,7 @@ void ADCStart(void)
 
     AISum[0] -= AiValue[0][AIAverageCnt];
     AISum[1] -= AiValue[1][AIAverageCnt];
+    PSSum -= PsValue[PSAverageCnt];
   }
 
   HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADCValue, 4); /* ADC 시작 */
