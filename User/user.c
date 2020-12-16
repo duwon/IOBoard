@@ -143,10 +143,11 @@ void userLoop(void)
     flag_1mSecTimerOn = false;
   }
 
-  if(flag_10mSecTimerOn == true)
+  if(flag_10mSecTimerOn == true) /* 주기적 센싱 실행 */
   {
-    ADCStart(); /* ADC 수행 */
+    ADCStart(); /* ADC 수행 - AIN, DS*/
     RTDSTart(); /* RTD 수행 */
+    DPStart();  /* DP 수행 */
     flag_10mSecTimerOn = false;
   }
 
@@ -533,7 +534,7 @@ static void Proc_DP(void)
   CT = HAL_GetTick();
   if (CT > NT)
   {
-    stIOStatus.Dp = (uint16_t)DP_Read(); /* 소수점 이하 추가 */
+    stIOStatus.Dp = DP_Read(); /* 소수점 이하 추가 */
     NT = CT + ((uint32_t)stIOConfig.Dp_Cycle << 10U);
   }
 }

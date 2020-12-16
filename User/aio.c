@@ -16,9 +16,8 @@
 #include "uart.h"
 #include "timer.h"
 
-#define AI_SENSING_AVERAGE_CNT 100
-#define PS_SENSING_AVERAGE_CNT 100
-#define VREF_SENSING_AVERAGE_CNT 100
+#define AI_SENSING_AVERAGE_CNT 50
+#define PS_SENSING_AVERAGE_CNT 50
 
 uint16_t AiValue[2][AI_SENSING_AVERAGE_CNT];
 uint16_t PsValue[PS_SENSING_AVERAGE_CNT];
