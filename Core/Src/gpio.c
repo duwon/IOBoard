@@ -43,18 +43,18 @@ void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, LD_AI2_Pin|LD_AI1_Pin|LD_DI4_Pin|LD_DI3_Pin
-                          |LD_DI2_Pin|LD_DI1_Pin|LD_RS485RDY_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, EN_RASPI_Pin|AIN_NSS_Pin|LD_RS232RDY_Pin|PM_NSS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, EN_RASPI_Pin|AIN_NSS_Pin|LD_RS232RDY_Pin|PM_NSS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, LD_DI4_Pin|LD_DI3_Pin|LD_DI2_Pin|LD_DI1_Pin
+                          |LD_RS485RDY_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET);
@@ -65,15 +65,6 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD_RDY_GPIO_Port, LD_RDY_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : PEPin PEPin PEPin PEPin
-                           PEPin PEPin PEPin */
-  GPIO_InitStruct.Pin = LD_AI2_Pin|LD_AI1_Pin|LD_DI4_Pin|LD_DI3_Pin
-                          |LD_DI2_Pin|LD_DI1_Pin|LD_RS485RDY_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PAPin PAPin PAPin PAPin */
   GPIO_InitStruct.Pin = EN_RASPI_Pin|AIN_NSS_Pin|LD_RS232RDY_Pin|PM_NSS_Pin;
@@ -92,6 +83,15 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = DI1_Pin|DI2_Pin|DI3_Pin|DI4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PEPin PEPin PEPin PEPin
+                           PEPin */
+  GPIO_InitStruct.Pin = LD_DI4_Pin|LD_DI3_Pin|LD_DI2_Pin|LD_DI1_Pin
+                          |LD_RS485RDY_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */

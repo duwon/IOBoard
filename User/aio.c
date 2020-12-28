@@ -16,8 +16,8 @@
 #include "uart.h"
 #include "timer.h"
 
-#define AI_SENSING_AVERAGE_CNT 50
-#define PS_SENSING_AVERAGE_CNT 50
+#define AI_SENSING_AVERAGE_CNT 50 /*!< Analog Input 평균 센싱 횟수 */
+#define PS_SENSING_AVERAGE_CNT 50 /*!< 압력센서 평균 센싱 횟수 */
 
 uint16_t AiValue[2][AI_SENSING_AVERAGE_CNT];
 uint16_t PsValue[PS_SENSING_AVERAGE_CNT];
@@ -38,11 +38,10 @@ uint16_t AI_Read(int8_t No)
   uint16_t analogValue = 0U;
   if (No < 2)
   {
-    //analogValue = (float)(AISum[No] / AI_SENSING_AVERAGE_CNT) * 1000 * VrefVoltage / 4096.0f / 20.0f; /* I = V/R = (평균 ADC값 * mA(1000) * Vref / 분해능) / 저항 값 */
     analogValue = AISum[No] / (AI_SENSING_AVERAGE_CNT - 1);
     memset((void *)AiValue[No], 0, sizeof(AiValue[No]));
     AISum[No] = 0;
-    }
+  }
   return analogValue;
 }
 
@@ -83,12 +82,12 @@ void ADCStart(void)
 
   if (flag_ADCDone == true)
   {
-	float Vref = 1.2f * 4096.0f / (float)(ADCValue[3]);
+    float Vref = 1.2f * 4096.0f / (float)(ADCValue[3]); /* Vref 보정 값 */
     flag_ADCDone = false;
     /* AI0, AI1 실크가 바뀐듯 */
     AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000000 / 4096.0f / 20.0f); 
     AiValue[0][AIAverageCnt] = (uint16_t)((float)(ADCValue[1]) * Vref * 1000000 / 4096.0f / 20.0f); /* (ADC값 / 2^12) * Vref * 20옴 * uA */
-    PsValue[PSAverageCnt] = (uint16_t)((float)ADCValue[2] * Vref * 100 / 4096.0f); /* (ADC 값 / 2^12) * Vref * 100
+    PsValue[PSAverageCnt] = (uint16_t)((float)ADCValue[2] * Vref * 100 / 4096.0f); /* (ADC 값 / 2^12) * Vref * 100 */
 
     AISum[0] += AiValue[0][AIAverageCnt];
     AISum[1] += AiValue[1][AIAverageCnt++];
@@ -102,7 +101,6 @@ void ADCStart(void)
     {
       PSAverageCnt = 0;
     }
-
 
     AISum[0] -= AiValue[0][AIAverageCnt];
     AISum[1] -= AiValue[1][AIAverageCnt];

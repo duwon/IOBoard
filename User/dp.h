@@ -8,6 +8,8 @@
 #define DP_OUTPUT_MIN  1638 /*!> 1638 counts (10% of 214 counts or 0x0666) */
 #define DP_FORCE_RATED 10 /*!> maximum value of force range (N, lb, g, or kg) */
 
+extern float dpTemperature;
+
 uint16_t DP_Read(void);
 void DPStart(void);
 

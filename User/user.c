@@ -65,7 +65,7 @@ typedef struct
   float Apparent;      /*!< 피상전력 */
   float Active_Energy; /*!< 유효전력량 */
   //-------------------------------- Odd I/O 상태값
-  int16_t Rtd;   /*!< MSB=정수, LSB=소수점  온도*/
+  int16_t Rtd;    /*!< MSB=정수, LSB=소수점  온도*/
   uint16_t Dp;    /*!< MSB=정수, LSB=소수점  차압센서 */
   uint16_t Ps;    /*!< MSB=정수, LSB=소수점  압력센서 */
   uint16_t Ai[2]; /*!< MSB=정수, LSB=소수점 */
@@ -106,13 +106,14 @@ void userStart(void)
 #ifdef DEBUG
   printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
 #endif
-  AIO_Init();   /* 내부 ADC 초기화 */
-  RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
-  Uart_Init();  /* UART 통신 시작 */
-  LED_Init();   /* LED 초기화 */
-  Timer_Init(); /* 타이머 시작 */
+  AIO_Init();     /* 내부 ADC 초기화 */
+  RTC_Load();     /* RTC IC와 내부 RTC에 동기화 */
+  RTD_Init();     /* RTD 센서 초기화 */
+  Uart_Init();    /* UART 통신 시작 */
+  LED_Init();     /* LED 초기화 */
+  Timer_Init();   /* 타이머 시작 */
   Current_Init(); /* EMP(전력측정) 초기화 */
-  RASPI_ON;     /* 라즈베리파이 전원 출력 */
+  RASPI_ON;       /* 라즈베리파이 전원 출력 */
 
   memcpy(&stIOConfig, (unsigned char *)FLASH_SYSTEM_CONFIG_ADDRESS, sizeof(stIOConfig)); /*  IO보드 설정값 불러 오기 */
   if ((stIOConfig.Pm_Hz == 0) || stIOConfig.Pm_Hz == 255)                                /* IO보드 설정값이 없으면 기본 값으로 설정 */
@@ -139,11 +140,11 @@ void userLoop(void)
   else if (flag_1mSecTimerOn == true) /* 1ms 마다 1msLoop 함수 호출 */
   {
     Detect_ResetSW(); /* RESET 스위치 입력 확인 */
-    user1msLoop(); /* 사용자 1ms Loop함수 호출 */
+    user1msLoop();    /* 사용자 1ms Loop함수 호출 */
     flag_1mSecTimerOn = false;
   }
 
-  if(flag_10mSecTimerOn == true) /* 주기적 센싱 실행 */
+  if (flag_10mSecTimerOn == true) /* 주기적 센싱 실행 */
   {
     ADCStart(); /* ADC 수행 - AIN, DS*/
     RTDSTart(); /* RTD 수행 */
@@ -419,7 +420,8 @@ static void Proc_RS232(void)
       //printf("TEST1 \r\n");
       //LMP90080_Test();
       //PSENOR_Read();
-      printf("Temp : %d\r\n", (int)(LMP90080_ReadRTD() * 100));
+      printf("RTD : %d.%d\r\n", (int)LMP90080_ReadRTD(), (int)((LMP90080_ReadRTD() - (int)LMP90080_ReadRTD())*100));//(int)(LMP90080_ReadRTD() * 100));
+      printf("dpTemp : %d.%d\r\n",(int)dpTemperature, (int)((dpTemperature - (int)dpTemperature)*100));
       break;
     case 0xD2: /* test 2 */
       //printf("TEST2 \r\n");
@@ -458,10 +460,13 @@ static void Proc_RS232(void)
         printf("%x : %lx \r\n", uart1Message.data[1], SY7T609_ReadReg(uart1Message.data[1]));
       }
       if (uart1Message.data[0] == 0x03) // Write Reg
-	{
-    	  SY7T609_WriteReg(uart1Message.data[1], uart1Message.data[3]);
-	  printf("Write %x : %lx \r\n", uart1Message.data[1], uart1Message.data[1]);
-	}
+      {
+        SY7T609_WriteReg(uart1Message.data[1], uart1Message.data[3]);
+        //printf("Write %x : %lx \r\n", uart1Message.data[1], uart1Message.data[1]);
+      }
+      break;
+    case 0xE3:
+      sendMessageToRS232(0xE3, (uint8_t *)&dpTemperature, 4);
       break;
     default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");
@@ -488,6 +493,10 @@ static void Proc_DI(void)
   }
 }
 
+/**
+ * @brief Digital Output
+ * 
+ */
 static void Proc_DO(void)
 {
   static uint32_t NT = 0;
@@ -545,16 +554,19 @@ static void Proc_DP(void)
  */
 static void Proc_AI(void)
 {
-	  static uint32_t NT;
-	  uint32_t CT;
+  static uint32_t NT;
+  uint32_t CT;
 
-	  CT = HAL_GetTick();
-	  if (CT > NT)
-	  {
-	    stIOStatus.Ai[0] = AI_Read(0);
-	    stIOStatus.Ai[1] = AI_Read(1);
-	    NT = CT + ((uint32_t)stIOConfig.Ai_Cycle << 10U);
-	  }
+  CT = HAL_GetTick();
+  if (CT > NT)
+  {
+    stIOStatus.Ai[0] = AI_Read(0);
+    stIOStatus.Ai[1] = AI_Read(1);
+    NT = CT + ((uint32_t)stIOConfig.Ai_Cycle << 10U);
+
+    if(stIOStatus.Ai[0] > 2000) LED_On(LD_AIN1); else LED_Off(LD_AIN1);
+    if(stIOStatus.Ai[1] > 2000) LED_On(LD_AIN2); else LED_Off(LD_AIN2);
+  }
 }
 
 /**
@@ -563,28 +575,32 @@ static void Proc_AI(void)
  */
 static void Proc_PS(void)
 {
-	  static uint32_t NT;
-	  uint32_t CT;
+  static uint32_t NT;
+  uint32_t CT;
 
-	  CT = HAL_GetTick();
-	  if (CT > NT)
-	  {
-	    stIOStatus.Ps = PS_Read();
-	    NT = CT + ((uint32_t)stIOConfig.Ps_Cycle << 10U);
-	  }
+  CT = HAL_GetTick();
+  if (CT > NT)
+  {
+    stIOStatus.Ps = PS_Read();
+    NT = CT + ((uint32_t)stIOConfig.Ps_Cycle << 10U);
+  }
 }
 
+/**
+ * @brief 전력 센싱
+ * 
+ */
 static void Proc_Ct(void)
 {
-  	static uint32_t NT;
-	  uint32_t CT;
+  static uint32_t NT;
+  uint32_t CT;
 
-	  CT = HAL_GetTick();
-	  if (CT > NT)
-	  {
-	    Current_Read((float *)&stIOStatus);
-	    NT = CT + ((uint32_t)stIOConfig.Pm_Cycle << 10U);
-	  }
+  CT = HAL_GetTick();
+  if (CT > NT)
+  {
+    Current_Read((float *)&stIOStatus);
+    NT = CT + ((uint32_t)stIOConfig.Pm_Cycle << 10U);
+  }
 }
 
 /**
@@ -614,8 +630,6 @@ static void Detect_ResetSW(void)
   }
 }
 
-uint16_t debug_adcValue[1000];
-int debug_adcValue_Index = 0;
 /**
  * @brief GPIO 인터럽트 처리
  * 
@@ -631,11 +645,5 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   if (GPIO_Pin == GPIO_PIN_5) /* PC5 - 임시 테스트용 */
   {
     //LMP90080_ReadReg_IT(0x1A);
-
-    debug_adcValue[debug_adcValue_Index++] = LMP90080_ReadReg2Byte(0x1A);
-    if (debug_adcValue_Index >= 1000)
-    {
-      debug_adcValue_Index = 0;
-    }
   }
 }
