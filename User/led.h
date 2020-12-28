@@ -18,9 +18,9 @@ typedef enum
   LD_DO2,
   LD_CC,
   LD_RDY,
+  LD_RTD, /* 실크 바뀐듯 */
   LD_AIN1,
-  LD_AIN2,
-  LD_RTD
+  LD_AIN2
 } Led_TypeDef;
 
 void LED_On(Led_TypeDef Led);

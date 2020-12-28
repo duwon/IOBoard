@@ -85,9 +85,10 @@ void ADCStart(void)
   {
 	float Vref = 1.2f * 4096.0f / (float)(ADCValue[3]);
     flag_ADCDone = false;
-    AiValue[0][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000 * 100 / 4096.0f / 20.0f);
-    AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[1]) * Vref * 1000 * 100 / 4096.0f / 20.0f);
-    PsValue[PSAverageCnt] = (uint16_t)((float)ADCValue[2] * Vref * 100 /4096.0f);
+    /* AI0, AI1 실크가 바뀐듯 */
+    AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000000 / 4096.0f / 20.0f); 
+    AiValue[0][AIAverageCnt] = (uint16_t)((float)(ADCValue[1]) * Vref * 1000000 / 4096.0f / 20.0f); /* (ADC값 / 2^12) * Vref * 20옴 * uA */
+    PsValue[PSAverageCnt] = (uint16_t)((float)ADCValue[2] * Vref * 100 / 4096.0f); /* (ADC 값 / 2^12) * Vref * 100
 
     AISum[0] += AiValue[0][AIAverageCnt];
     AISum[1] += AiValue[1][AIAverageCnt++];
