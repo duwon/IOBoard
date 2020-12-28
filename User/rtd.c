@@ -13,6 +13,7 @@
 #include "rtd.h"
 #include "gpio.h"
 #include "spi.h"
+#include "led.h"
 
 #define RTD_SENSING_AVERAGE_CNT 20
 
@@ -201,8 +202,10 @@ void RTDSTart(void)
 
     if ((rtdValue[rtdAverageCnt] < -20000) || (rtdValue[rtdAverageCnt] > 30000)) /* -200 ~ 300 값만 정상 */
     {
+      LED_Off(LD_RTD);
       return;
     }
+    LED_On(LD_RTD);
     rtdSum += rtdValue[rtdAverageCnt++];
     if (rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
     {
