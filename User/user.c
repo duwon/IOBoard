@@ -250,14 +250,14 @@ static void Check_Todo(void)
     break;
 
   case 2: //------------------------------ 라즈베리와의 통신 시간
-    if (Raspberry_Timer > 1800)
+	if (Raspberry_Timer > 1802)
+	{
+	  RASPI_ON; // 1802초에 라즈베리 전원 ON (전원 2초간 OFF 후 ON)
+	  Raspberry_Timer = 0;
+	}
+	else if (Raspberry_Timer > 1800)
     {
       RASPI_OFF; // 1800초 동안 응답 없으면 라즈베리 전원  OFF
-    }
-    else if (Raspberry_Timer > 1802)
-    {
-      RASPI_ON; // 1802초에 라즈베리 전원 ON (전원 2초간 OFF 후 ON)
-      Raspberry_Timer = 0;
     }
   default:
     looping = 0;
