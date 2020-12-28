@@ -107,15 +107,31 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 }
 
+int S24ToS32(uint32_t s24Data)
+{
+  int cnvInt=0;
+  if((s24Data & 0x800000) == 0x800000)
+  {
+	  cnvInt |= 0xFF000000;
+	  cnvInt |= s24Data ;//& 0x7FFFFF;
+  }
+  else
+  {
+	  cnvInt = s24Data;
+  }
+
+  return cnvInt;
+}
+
 void Current_Read(float *powerValue)
 {
   powerValue[0] = (float)SY7T609_ReadReg(0x11U) / 1000.0f; /* VRMS U24 N Scaled RMS Voltage */
   powerValue[1] = (float)SY7T609_ReadReg(0x12U) / 128000.0f; /* IRMS U24 N Scaled RMS Current */
-  powerValue[2] = (8388608.0f - (float)SY7T609_ReadReg(0x18U)) / 200.0f; /* PF S24 N Scaled Power Factor */
-  powerValue[3] = (8388608.0f - (float)SY7T609_ReadReg(0x13U)) / 200.0f; /* Power S24 N Scaled Active Power */
-  powerValue[4] = (8388608.0f - (float)SY7T609_ReadReg(0x14U)) / 200.0f; /* VAR S24 N Scaled Reactive Power */
-  powerValue[5] = (8388608.0f - (float)SY7T609_ReadReg(0x15U)) / 200.0f; /* VA S24 N Scaled Apparent Power */
-  powerValue[6] = (8388608.0f - (float)SY7T609_ReadReg(0x17U)) / 200.0f; /* avgpower S24 N Scaled Average Active Power */
+  powerValue[2] = (float)S24ToS32(SY7T609_ReadReg(0x18U)) / 200.0f; /* PF S24 N Scaled Power Factor */
+  powerValue[3] = (float)S24ToS32(SY7T609_ReadReg(0x13U)) / 200.0f; /* Power S24 N Scaled Active Power */
+  powerValue[4] = (float)S24ToS32(SY7T609_ReadReg(0x14U)) / 200.0f; /* VAR S24 N Scaled Reactive Power */
+  powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 200.0f; /* VA S24 N Scaled Apparent Power */
+  powerValue[6] = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 200.0f; /* avgpower S24 N Scaled Average Active Power */
 
 //SY7T609_ReadReg(0x0FU); /* VAVG S24 N Scaled Average Voltage */
 //SY7T609_ReadReg(0x10U); /* IAVG S24 N Scaled Average Current */
