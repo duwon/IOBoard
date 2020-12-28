@@ -10,8 +10,6 @@ typedef enum
   LD_DI2,
   LD_DI3,
   LD_DI4,
-  LD_AI1,
-  LD_AI2,
   LD_RS485RDY,
   LD_RS232RDY,
   LD_DO1,

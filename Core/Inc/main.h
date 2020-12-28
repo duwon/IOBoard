@@ -59,10 +59,6 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define MCU_FREQ 64
-#define LD_AI2_Pin GPIO_PIN_5
-#define LD_AI2_GPIO_Port GPIOE
-#define LD_AI1_Pin GPIO_PIN_6
-#define LD_AI1_GPIO_Port GPIOE
 #define EN_RASPI_Pin GPIO_PIN_1
 #define EN_RASPI_GPIO_Port GPIOA
 #define RS485_TX2_Pin GPIO_PIN_2
