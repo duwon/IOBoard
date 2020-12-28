@@ -187,7 +187,7 @@ void RTD_Init(void)
 int16_t RTD_Read(void)
 {
   int16_t temperature = 0;
-  temperature = rtdSum / RTD_SENSING_AVERAGE_CNT;
+  temperature = rtdSum / (RTD_SENSING_AVERAGE_CNT -1);
   rtdSum = 0;
   memset((void *)rtdValue, 0, sizeof(rtdValue));
   return temperature;

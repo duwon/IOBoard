@@ -39,7 +39,7 @@ uint16_t AI_Read(int8_t No)
   if (No < 2)
   {
     //analogValue = (float)(AISum[No] / AI_SENSING_AVERAGE_CNT) * 1000 * VrefVoltage / 4096.0f / 20.0f; /* I = V/R = (평균 ADC값 * mA(1000) * Vref / 분해능) / 저항 값 */
-	analogValue = AISum[No] / AI_SENSING_AVERAGE_CNT;
+    analogValue = AISum[No] / (AI_SENSING_AVERAGE_CNT - 1);
     memset((void *)AiValue[No], 0, sizeof(AiValue[No]));
     AISum[No] = 0;
     }
@@ -49,7 +49,7 @@ uint16_t AI_Read(int8_t No)
 uint16_t PS_Read(void)
 {
   uint16_t calValue = 0U;
-  calValue = (uint16_t)((float)((PSSum / AI_SENSING_AVERAGE_CNT) - 10) * 4.444f);
+  calValue = (uint16_t)((float)((PSSum / (PS_SENSING_AVERAGE_CNT -1)) - 10) * 4.444f);
   memset((void *)PsValue, 0, sizeof(PsValue));
   PSSum = 0;
   return calValue;
