@@ -4,8 +4,8 @@
 #include "main.h"
 #include "gpio.h"
 
-#define RASPI_OFF HAL_GPIO_WritePin(EN_RASPI_GPIO_Port, EN_RASPI_Pin, GPIO_PIN_RESET)
-#define RASPI_ON HAL_GPIO_WritePin(EN_RASPI_GPIO_Port, EN_RASPI_Pin, GPIO_PIN_SET)
+#define RASPI_OFF HAL_GPIO_WritePin(EN_RASPI_GPIO_Port, EN_RASPI_Pin, GPIO_PIN_SET)
+#define RASPI_ON HAL_GPIO_WritePin(EN_RASPI_GPIO_Port, EN_RASPI_Pin, GPIO_PIN_RESET)
 
 void Dio_Init(void);
 void DO_Write(int8_t No, int8_t Value);
