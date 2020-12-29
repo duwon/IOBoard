@@ -440,7 +440,7 @@ static void Proc_RS232(void)
       printf("%x : %x \r\n", uart1Message.data[0], LMP90080_ReadRegReadAddress(uart1Message.data[0]));
       break;
     case 0xE0: /* SPI Read Reg - Read Address */
-      printf("%x : %lx \r\n", uart1Message.data[0], SY7T609_ReadReg(uart1Message.data[0]));
+    	printf("%x : 0x%lx, %d\r\n", uart1Message.data[0], SY7T609_ReadReg(uart1Message.data[0]), SY7T609_ReadReg(uart1Message.data[0]));
       break;
     case 0xE1: /* SPI Read Reg - Indirect Read Address */
       if (uart1Message.data[0] == 0x01)
@@ -457,7 +457,7 @@ static void Proc_RS232(void)
       }
       if (uart1Message.data[0] == 0x03) // read Reg
       {
-        printf("%x : %lx \r\n", uart1Message.data[1], SY7T609_ReadReg(uart1Message.data[1]));
+        printf("%x : 0x%lx, %d\r\n", uart1Message.data[1], SY7T609_ReadReg(uart1Message.data[1]), SY7T609_ReadReg(uart1Message.data[1]));
       }
       if (uart1Message.data[0] == 0x03) // Write Reg
       {
