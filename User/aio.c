@@ -17,12 +17,14 @@
 #include "timer.h"
 
 #define AI_SENSING_AVERAGE_CNT 50 /*!< Analog Input 평균 센싱 횟수 */
-#define PS_SENSING_AVERAGE_CNT 50 /*!< 압력센서 평균 센싱 횟수 */
+#define DP_SENSING_AVERAGE_CNT 50 /*!< 압력센서 평균 센싱 횟수 */
+#define DP_TEMPERATURE_ERROR   5  /*!< 압력센서 에러 보상계수 0 ~ 10, 기준 5*/
+#define DP_VFSS ((DP_TEMPERATURE_ERROR-5) * 1 * 0.09 * 5) /*!< 0~80도에서 에러율 보정 값 */
 
 uint16_t AiValue[2][AI_SENSING_AVERAGE_CNT];
-uint16_t PsValue[PS_SENSING_AVERAGE_CNT];
+uint16_t DpValue[DP_SENSING_AVERAGE_CNT];
 static uint32_t AISum[2];
-static uint32_t PSSum;
+static uint32_t DPSum;
 
 static bool flag_ADCDone = false;
 static uint16_t ADCValue[4];
@@ -45,12 +47,12 @@ uint16_t AI_Read(int8_t No)
   return analogValue;
 }
 
-uint16_t PS_Read(void)
+uint16_t DP_Read(void)
 {
   uint16_t calValue = 0U;
-  calValue = (uint16_t)((float)((PSSum / (PS_SENSING_AVERAGE_CNT -1)) - 10) * 4.444f);
-  memset((void *)PsValue, 0, sizeof(PsValue));
-  PSSum = 0;
+  calValue = (uint16_t)((float)((DPSum / (DP_SENSING_AVERAGE_CNT -1)) - 200) * 0.224f + (float)DP_VFSS);
+  memset((void *)DpValue, 0, sizeof(DpValue));
+  DPSum = 0;
   return calValue;
 }
 
@@ -72,13 +74,13 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 }
 
 /**
- * @brief AI 및 PS의 센싱 값 저장
+ * @brief AI 및 DP의 센싱 값 저장
  * 
  */
 void ADCStart(void)
 {
   static uint8_t AIAverageCnt = 0;
-  static uint8_t PSAverageCnt = 0;
+  static uint8_t DPAverageCnt = 0;
 
   if (flag_ADCDone == true)
   {
@@ -87,24 +89,24 @@ void ADCStart(void)
     /* AI0, AI1 실크가 바뀐듯 */
     AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000000 / 4096.0f / 20.0f); 
     AiValue[0][AIAverageCnt] = (uint16_t)((float)(ADCValue[1]) * Vref * 1000000 / 4096.0f / 20.0f); /* (ADC값 / 2^12) * Vref * 20옴 * uA */
-    PsValue[PSAverageCnt] = (uint16_t)((float)ADCValue[2] * Vref * 100 / 4096.0f); /* (ADC 값 / 2^12) * Vref * 100 */
+    DpValue[DPAverageCnt] = (uint16_t)((float)ADCValue[2] * Vref * 0.488f); /* (ADC 값 / 2^12) * Vref * 1000 / 저항분배(0.5) */
 
     AISum[0] += AiValue[0][AIAverageCnt];
     AISum[1] += AiValue[1][AIAverageCnt++];
-    PSSum += PsValue[PSAverageCnt++];
+    DPSum += DpValue[DPAverageCnt++];
 
     if (AIAverageCnt >= AI_SENSING_AVERAGE_CNT)
     {
       AIAverageCnt = 0;
     }
-    if (PSAverageCnt >= PS_SENSING_AVERAGE_CNT)
+    if (DPAverageCnt >= DP_SENSING_AVERAGE_CNT)
     {
-      PSAverageCnt = 0;
+      DPAverageCnt = 0;
     }
 
     AISum[0] -= AiValue[0][AIAverageCnt];
     AISum[1] -= AiValue[1][AIAverageCnt];
-    PSSum -= PsValue[PSAverageCnt];
+    DPSum -= DpValue[DPAverageCnt];
   }
 
   HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADCValue, 4); /* ADC 시작 */

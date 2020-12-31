@@ -20,6 +20,7 @@
     - 2020-09-18    :    프로젝트 셋팅
   */
 
+#include <ps.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -34,7 +35,6 @@
 #include "flash.h"
 #include "dio.h"
 #include "led.h"
-#include "dp.h"
 #include "rtd.h"
 #include "current.h"
 
@@ -148,7 +148,7 @@ void userLoop(void)
   {
     ADCStart(); /* ADC 수행 - AIN, DS*/
     RTDSTart(); /* RTD 수행 */
-    DPStart();  /* DP 수행 */
+    PSStart();  /* DP 수행 */
     flag_10mSecTimerOn = false;
   }
 
@@ -421,7 +421,7 @@ static void Proc_RS232(void)
       //LMP90080_Test();
       //PSENOR_Read();
       printf("RTD : %d.%d\r\n", (int)LMP90080_ReadRTD(), (int)((LMP90080_ReadRTD() - (int)LMP90080_ReadRTD())*100));//(int)(LMP90080_ReadRTD() * 100));
-      printf("dpTemp : %d.%d\r\n",(int)dpTemperature, (int)((dpTemperature - (int)dpTemperature)*100));
+      printf("psTemp : %d.%d\r\n",(int)psTemperature, (int)((psTemperature - (int)psTemperature)*100));
       break;
     case 0xD2: /* test 2 */
       //printf("TEST2 \r\n");
@@ -466,7 +466,7 @@ static void Proc_RS232(void)
       }
       break;
     case 0xE3:
-      sendMessageToRS232(0xE3, (uint8_t *)&dpTemperature, 4);
+      sendMessageToRS232(0xE3, (uint8_t *)&psTemperature, 4);
       break;
     default: /* 메시지 없음 */
       printf("MSG ERROR\r\n");
