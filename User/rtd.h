@@ -3,19 +3,20 @@
 
 #include "main.h"
 
-extern uint8_t spi1RxBuffer[10];
+/** @defgroup RTD_Variable RTD 변수
+  * @{
+  */
+ 
+#define RTD_SENSING_AVERAGE_CNT 20 /*!< RTD 센서의 평균 셍싱 횟수 */
 
+/**
+  * @}
+  */
+
+void RTD_Init(void);
+void RTDSTart(void); /*!< RTD 평균을 위한 센싱 시작 함수 */
 int16_t RTD_Read(void);
 
-void LMP90080_Test(void);
 void LMP90080_GPIO_Write(uint8_t PinNum, uint8_t PinState);
-
-void LMP90080_WriteReg(uint8_t regNum, uint8_t regData);
-uint8_t LMP90080_ReadReg(uint8_t regNum);
-uint8_t LMP90080_ReadRegReadAddress(uint8_t regNum);
-uint16_t LMP90080_ReadReg2Byte(uint8_t regNum);
-void LMP90080_ReadReg_IT(uint8_t regNum);
-float LMP90080_ReadRTD(void);
-void RTDSTart(void);
 
 #endif /* RTD_H__ */

@@ -7,7 +7,7 @@ void userStart(void);
 void userLoop(void);
 
 #define VERSION_MAJOR 0U
-#define VERSION_MINOR 1U
+#define VERSION_MINOR 2U
 
 
 #endif /* USER_H__ */

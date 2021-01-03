@@ -8,14 +8,18 @@
 
   */
 
-#include "current.h"
+#include <emp.h>
 #include "spi.h"
+#include "timer.h"
 
 uint8_t spi3RxBuffer[10];                /*!< EMP SPI - SY7T609 수신 버퍼 */
 static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 플래그, false로 변경해야 수신 가능 */
+float powerMeter = 0;                    /*!< 현재 소비전력 W */
+uint64_t sumPowerMeter = 0;              /*!< 소비전력 mW/h */
 
 static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
 static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
+static int S24ToS32(uint32_t s24Data);
 
 /**
  * @brief EMP Register 쓰기
@@ -107,7 +111,7 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 }
 
-int S24ToS32(uint32_t s24Data)
+static int S24ToS32(uint32_t s24Data)
 {
   int cnvInt=0;
   if((s24Data & 0x800000) == 0x800000)
@@ -123,15 +127,16 @@ int S24ToS32(uint32_t s24Data)
   return cnvInt;
 }
 
-void Current_Read(float *powerValue)
+void EMP_Read(float *powerValue)
 {
   powerValue[0] = (float)SY7T609_ReadReg(0x11U) / 1000.0f; /* VRMS U24 N Scaled RMS Voltage */
   powerValue[1] = (float)SY7T609_ReadReg(0x12U) / 128000.0f; /* IRMS U24 N Scaled RMS Current */
-  powerValue[2] = (float)S24ToS32(SY7T609_ReadReg(0x18U)) / 200.0f; /* PF S24 N Scaled Power Factor */
-  powerValue[3] = (float)S24ToS32(SY7T609_ReadReg(0x13U)) / 200.0f; /* Power S24 N Scaled Active Power */
-  powerValue[4] = (float)S24ToS32(SY7T609_ReadReg(0x14U)) / 200.0f; /* VAR S24 N Scaled Reactive Power */
-  powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 200.0f; /* VA S24 N Scaled Apparent Power */
-  powerValue[6] = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 200.0f; /* avgpower S24 N Scaled Average Active Power */
+  powerValue[2] = (float)S24ToS32(SY7T609_ReadReg(0x18U)) / 1000.0f; /* PF S24 N Scaled Power Factor */
+  powerValue[3] = (float)S24ToS32(SY7T609_ReadReg(0x13U)) / 20000.0f; /* Power S24 N Scaled Active Power */
+  powerValue[4] = (float)S24ToS32(SY7T609_ReadReg(0x14U)) / 20000.0f; /* VAR S24 N Scaled Reactive Power */
+  powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 20000.0f; /* VA S24 N Scaled Apparent Power */
+  powerValue[6] = (float)sumPowerMeter / 1000.0f;
+  //powerValue[6] = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 20000.0f; /* avgpower S24 N Scaled Average Active Power */
   //powerValue[2] = (8388608.0f - (float)SY7T609_ReadReg(0x18U)) / 200.0f; /* PF S24 N Scaled Power Factor */
   //powerValue[3] = (8388608.0f - (float)SY7T609_ReadReg(0x13U)) / 200.0f; /* Power S24 N Scaled Active Power */
   //powerValue[4] = (8388608.0f - (float)SY7T609_ReadReg(0x14U)) / 200.0f; /* VAR S24 N Scaled Reactive Power */
@@ -160,17 +165,81 @@ void Current_Read(float *powerValue)
 //SY7T609_ReadReg(0x22U); /* VAharm S24 N Scaled Harmonic Apparent Power NA */
 }
 
-void Current_Init(void)
+void EMP_Init(void)
 {
-  SY7T609_WriteReg(0x4FU, 62000);   /* IScale - Current scaling register. */
-  SY7T609_WriteReg(0x50U, 667000);  /* VScale - Voltage scaling register */
-  SY7T609_WriteReg(0x51U, 161539);  /* PScale - Power scaling register. */
-  SY7T609_WriteReg(0x52U, 1000);    /* PFSCALE - Power Factor scaling register. */
-  SY7T609_WriteReg(0x53U, 1000);    /* FSCALE - Frequency scaling register.  */
-  SY7T609_WriteReg(0x54u, 1000);    /* Temperature Scaling register. */
-  SY7T609_WriteReg(0x5BU, 0);      /* iavgtarget U24 Y Average Current target for Calibration. 0 */
-  SY7T609_WriteReg(0x5CU, 0);      /* vavgtarget U24 Y Average Voltage target for Calibration. 0 */
-  SY7T609_WriteReg(0x5DU, 1000);   /* irmstarget U24 Y RMS Current target for Calibration. 1,000 */
-  SY7T609_WriteReg(0x5EU, 120000); /* vrmstarget U24 Y RMS Voltage target for Calibration. 120,000 */
-  SY7T609_WriteReg(0x5FU, 120000); /* powertarget U24 Y Active Power target for Calibration. 120,000 */
+  if(SY7T609_ReadReg(0x47U) == 0x200000) /* IC 초기 값이면 */
+  {
+    SY7T609_WriteReg(0x51U, 8337500);  /* PScale - Power scaling register. */
+    SY7T609_WriteReg(0x51U, 8337500);  /* PScale - Power scaling register. */
+    SY7T609_WriteReg(0x51U, 8337500);  /* PScale - Power scaling register. */
+    SY7T609_WriteReg(0x48U, CAL_VGAIN);  /* vgain - Voltage gain set. */
+    SY7T609_WriteReg(0x47U, CAL_IGAIN);   /* igain - Current gain set. */
+  }
+  
+  //SY7T609_WriteReg(0x47U, 0xCA95);   /* igain - Current gain set. */
+  //SY7T609_WriteReg(0x48U, 0x20f6cc);  /* vgain - Voltage gain set. */
+  //SY7T609_WriteReg(0x4FU, 62000);   /* IScale - Current scaling register. */
+  //SY7T609_WriteReg(0x50U, 667000);  /* VScale - Voltage scaling register */
+  //SY7T609_WriteReg(0x51U, 8337500);  /* PScale - Power scaling register. */
+  //SY7T609_WriteReg(0x52U, 1000);    /* PFSCALE - Power Factor scaling register. */
+  //SY7T609_WriteReg(0x53U, 1000);    /* FSCALE - Frequency scaling register.  */
+  //SY7T609_WriteReg(0x54u, 1000);    /* Temperature Scaling register. */
+  //SY7T609_WriteReg(0x5BU, 0);      /* iavgtarget U24 Y Average Current target for Calibration. 0 */
+  //SY7T609_WriteReg(0x5CU, 0);      /* vavgtarget U24 Y Average Voltage target for Calibration. 0 */
+  //SY7T609_WriteReg(0x5DU, 1);   /* irmstarget U24 Y RMS Current target for Calibration. 1,000 */
+  //SY7T609_WriteReg(0x5EU, 220000); /* vrmstarget U24 Y RMS Voltage target for Calibration. 120,000 */
+  //SY7T609_WriteReg(0x5FU, 120000); /* powertarget U24 Y Active Power target for Calibration. 120,000 */
+
+  //SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_CAL_VRMS] | EMP_COMMAND[COMMAND_CAL_IRMS]);
+  //SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_CAL_IRMS]);
+
+  sumPowerMeter = RTC_LoadValue();
+}
+
+int flag_CalDone = false;
+/**
+ * @brief Cal 수행
+ * 
+ * @param VrmsTarget: mV
+ * @param IrmsTarger: mA
+ */
+void SY7T609_Cal(uint32_t VrmsTarget, uint32_t IrmsTarger)
+{
+  SY7T609_WriteReg(0x5DU, IrmsTarger * 128);   /* irmstarget U24 Y RMS Current target for Calibration. 1,000 */
+  SY7T609_WriteReg(0x5DU, IrmsTarger * 128);   /* irmstarget U24 Y RMS Current target for Calibration. 1,000 */
+  SY7T609_WriteReg(0x5EU, VrmsTarget); /* vrmstarget U24 Y RMS Voltage target for Calibration. 120,000 */
+  SY7T609_WriteReg(0x5EU, VrmsTarget); /* vrmstarget U24 Y RMS Voltage target for Calibration. 120,000 */
+  SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_CAL_VRMS] | EMP_COMMAND[COMMAND_CAL_IRMS]);
+  flag_CalDone = true;
+}
+
+void EMP_SaveEveragePower(void)
+{
+#ifdef DEBUG
+  powerMeter = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 20000.0f; /* 테스트 용 */
+#endif 
+  static int cnt60sTimer = 0;
+  static int cntCalDone = 0;
+
+  cnt60sTimer++;
+
+  sumPowerMeter += (uint64_t)(S24ToS32(SY7T609_ReadReg(0x17U)) / 72000);
+
+  if(cnt60sTimer >= 60)
+  {
+    RTC_SaveValue(sumPowerMeter);
+    cnt60sTimer = 0;
+  }
+
+  if(flag_CalDone)
+  {
+    cntCalDone++;
+    if(cntCalDone == 10)
+    {
+      SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_SAVETOFALSH]);
+      cntCalDone = 0;
+      flag_CalDone = false;
+    }
+  }
+  
 }

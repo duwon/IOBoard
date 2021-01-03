@@ -15,4 +15,7 @@ void RTC_Load(void);
 void RTC_Get(uint8_t *pTime);
 void RTC_Set(uint8_t *pTime);
 
+uint64_t RTC_LoadValue(void);
+void RTC_SaveValue(uint64_t saveValue);
+
 #endif /* TIMER_H__ */

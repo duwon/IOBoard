@@ -20,7 +20,6 @@
     - 2020-09-18    :    프로젝트 셋팅
   */
 
-#include <ps.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -36,21 +35,22 @@
 #include "dio.h"
 #include "led.h"
 #include "rtd.h"
-#include "current.h"
+#include <emp.h>
+#include <ps.h>
 
 #pragma pack(push, 1) /* 1바이트 크기로 정렬  */
 typedef struct
 {
-  uint8_t Do[2];      /* 디폴트 설정값  0=Off */
-  uint8_t Rtd_Cycle;  /* 측정주기 sec	  초기값 60 */
-  uint8_t Ai_Cycle;   /* 측정주기 sec   초기값 1 */
-  uint8_t Di_Cycle;   /* 측정주기 sec   초기값 1 */
-  uint8_t Dp_Cycle;   /* 측정주기 sec   초기값 5 압력센서 */
-  uint8_t Ps_Cycle;   /* 측정주기 sec   초기값 5 차압센서 */
-  uint8_t Pm_Cycle;   /* 측정주기 sec   초기값 60 */
-  uint16_t Pm_Volt;   /* 파워메터 기준진압                 초기값 220 */
-  uint8_t Pm_Current; /* 파워메터 기준전류  100 -> 10.0 A  초기값 50 */
-  uint8_t Pm_Hz;      /* 파워메터 기준주파수               초기값 60 */
+  uint8_t Do[2];      /*!< 디폴트 설정값  0=Off */
+  uint8_t Rtd_Cycle;  /*!< 측정주기 sec	  초기값 60 */
+  uint8_t Ai_Cycle;   /*!< 측정주기 sec   초기값 1 */
+  uint8_t Di_Cycle;   /*!< 측정주기 sec   초기값 1 */
+  uint8_t Dp_Cycle;   /*!< 측정주기 sec   초기값 5 압력센서 */
+  uint8_t Ps_Cycle;   /*!< 측정주기 sec   초기값 5 차압센서 */
+  uint8_t Pm_Cycle;   /*!< 측정주기 sec   초기값 60 */
+  uint16_t Pm_Volt;   /*!< 파워메터 기준진압                 초기값 220 */
+  uint8_t Pm_Current; /*!< 파워메터 기준전류  100 -> 10.0 A  초기값 50 */
+  uint8_t Pm_Hz;      /*!< 파워메터 기준주파수               초기값 60 */
 } Io_Config_TypeDef;
 #pragma pack(pop)
 
@@ -76,11 +76,10 @@ typedef struct
 static Io_Config_TypeDef stIOConfig; /*!< IO Board 설정값 */
 static Io_Status_TyeDef stIOStatus;  /*!< IO Board 상태정보 */
 
-static uint32_t Raspberry_Timer = 0;
-static uint32_t Restart_Timer;
-static uint8_t Reset_sw = 0; // Reset switch
+static uint32_t Raspberry_Timer = 0; /*!< 라즈베리파이 통신 불량시 카운트 */
+static uint8_t Reset_sw = 0; /*!< 리셋 스위치 누름 시간 */
 
-static bool flag_receiveFWImage = false;
+static bool flag_receiveFWImage = false; /*!< 펌웨어 업데이트 중 상태 플래그 */
 
 static void user1msLoop(void);
 static void Check_Todo(void);
@@ -94,7 +93,7 @@ static void Proc_AI(void);
 static void Proc_RTD(void);
 static void Proc_DP(void);
 static void Proc_PS(void);
-static void Proc_Ct(void);
+static void Proc_Emp(void);
 static void Detect_ResetSW(void);
 
 /**
@@ -112,7 +111,7 @@ void userStart(void)
   Uart_Init();    /* UART 통신 시작 */
   LED_Init();     /* LED 초기화 */
   Timer_Init();   /* 타이머 시작 */
-  Current_Init(); /* EMP(전력측정) 초기화 */
+  EMP_Init(); /* EMP(전력측정) 초기화 */
   RASPI_ON;       /* 라즈베리파이 전원 출력 */
 
   memcpy(&stIOConfig, (unsigned char *)FLASH_SYSTEM_CONFIG_ADDRESS, sizeof(stIOConfig)); /*  IO보드 설정값 불러 오기 */
@@ -146,16 +145,15 @@ void userLoop(void)
 
   if (flag_10mSecTimerOn == true) /* 주기적 센싱 실행 */
   {
-    ADCStart(); /* ADC 수행 - AIN, DS*/
+    ADCStart(); /* ADC 수행 - AIN, DS */
     RTDSTart(); /* RTD 수행 */
-    PSStart();  /* DP 수행 */
+    PSStart();  /* DP 수행  */
     flag_10mSecTimerOn = false;
   }
 
   if (flag_1SecTimerOn == true) /* 1초 간격 처리 */
   {
     Check_Todo();
-    HAL_IWDG_Refresh(&hiwdg);
     flag_1SecTimerOn = false;
   }
 }
@@ -200,8 +198,8 @@ static void user1msLoop(void)
   case 9: //----------------------------------------------< RTD 센서
     Proc_RTD();
     break;
-  case 10: //---------------------------------------------< 커런트 전류
-    Proc_Ct();
+  case 10: //---------------------------------------------< 전력센서
+    Proc_Emp();
     break;
   case 11: //---------------------------------------------< 차압센서
     Proc_DP();
@@ -221,48 +219,37 @@ static void user1msLoop(void)
  */
 static void Check_Todo(void)
 {
-  static int8_t looping = 0;
+  Raspberry_Timer++; /* 라즈베리 통신 시간 체크 */
 
-  LED_Toggle(LD_RDY); // 1초 간격 브링크
-  Raspberry_Timer++;
+  HAL_IWDG_Refresh(&hiwdg);
+  LED_Toggle(LD_RDY); /* 1초 간격 브링크 */
 
-  switch (looping++)
+  //------------------------------ Reset SW
+  switch (Reset_sw)
   {
-  case 0: //------------------------------ Reset SW
-    switch (Reset_sw)
-    {
-    case 1: // 1초
-      Reset_sw = 0;
-      NVIC_SystemReset(); /* 소프트웨어 시셋 실행 */
-      break;
-    case 2: // 3 초 이상
-      Reset_sw = 0;
-      //Factory_Cfg ();
-      break;
-    }
+  case 1: // 1초
+    Reset_sw = 0;
+    NVIC_SystemReset(); /* 소프트웨어 리셋 실행 */
     break;
-
-  case 1: //------------------------------ Restart
-    if (Restart_Timer)
-    {
-      //if (Restart_Timer < Time_1sec_Count) Restart ();
-    }
+  case 3: // 3 초 이상
+    Reset_sw = 0;
+    //Factory_Cfg (); /* 공장초기화 실행 */
     break;
+  }
 
-  case 2: //------------------------------ 라즈베리와의 통신 시간
+  //------------------------------ 라즈베리와의 통신 시간
 	if (Raspberry_Timer > 1802)
 	{
 	  RASPI_ON; // 1802초에 라즈베리 전원 ON (전원 2초간 OFF 후 ON)
 	  Raspberry_Timer = 0;
 	}
 	else if (Raspberry_Timer > 1800)
-    {
-      RASPI_OFF; // 1800초 동안 응답 없으면 라즈베리 전원  OFF
-    }
-  default:
-    looping = 0;
-    break;
+  {
+    RASPI_OFF; // 1800초 동안 응답 없으면 라즈베리 전원  OFF
   }
+
+  //------------------------------ EMP 소비전력 수집
+  EMP_SaveEveragePower();
 }
 
 /**
@@ -329,7 +316,7 @@ static void Proc_RasPI(void)
       procFirmwareUpdate(uart4Message.data);
       break;
     case MSGCMD_UPDATE_WATEMETER_CAL:
-      printf("MSGCMD_UPDATE_WATEMETER_CAL\r\n");
+      SY7T609_Cal((uint32_t)stIOConfig.Pm_Volt * 1000, (uint32_t)stIOConfig.Pm_Current * 100); /* mV, mA */
       break;
     case MSGCMD_REQUEST_WATMETER_VAL:
       printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
@@ -402,10 +389,14 @@ static void Proc_RS232(void)
       procFirmwareUpdate(uart1Message.data);
       break;
     case MSGCMD_UPDATE_WATEMETER_CAL:
-      printf("MSGCMD_UPDATE_WATEMETER_CAL\r\n");
+      SY7T609_Cal((uint32_t)stIOConfig.Pm_Volt * 1000, (uint32_t)stIOConfig.Pm_Current * 100); /* mV, mA */
       break;
     case MSGCMD_REQUEST_WATMETER_VAL:
       printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
+      for(int i=0; i<0x5F; i++)
+      {
+        printf("%x,%x\r\n",i,SY7T609_ReadReg(i));
+      }
       break;
     case MSGCMD_SET_DO:
       DO_Write(0, uart1Message.data[0]);
@@ -420,7 +411,7 @@ static void Proc_RS232(void)
       //printf("TEST1 \r\n");
       //LMP90080_Test();
       //PSENOR_Read();
-      printf("RTD : %d.%d\r\n", (int)LMP90080_ReadRTD(), (int)((LMP90080_ReadRTD() - (int)LMP90080_ReadRTD())*100));//(int)(LMP90080_ReadRTD() * 100));
+      //printf("RTD : %d.%d\r\n", (int)LMP90080_ReadRTD(), (int)((LMP90080_ReadRTD() - (int)LMP90080_ReadRTD())*100));//(int)(LMP90080_ReadRTD() * 100));
       printf("psTemp : %d.%d\r\n",(int)psTemperature, (int)((psTemperature - (int)psTemperature)*100));
       break;
     case 0xD2: /* test 2 */
@@ -428,42 +419,25 @@ static void Proc_RS232(void)
       printf("0x01 : %lx\r\n", SY7T609_ReadReg(0x01));
       break;
     case 0xD3: /* SPI Write Reg */
-      LMP90080_WriteReg(uart1Message.data[0], uart1Message.data[1]);
+      //LMP90080_WriteReg(uart1Message.data[0], uart1Message.data[1]);
       break;
     case 0xD4: /* SPI Read Reg */
-      printf("%x : %x \r\n", uart1Message.data[0], LMP90080_ReadReg2Byte(uart1Message.data[0]));
+      //printf("%x : %x \r\n", uart1Message.data[0], LMP90080_ReadReg2Byte(uart1Message.data[0]));
       break;
     case 0xD5: /* Request Status Data */
       sendMessageToRS232(MSGCMD_INFO_IOVALUE, (uint8_t *)&stIOStatus, sizeof(stIOStatus));
       break;
     case 0xD6: /* SPI Read Reg - Read Address */
-      printf("%x : %x \r\n", uart1Message.data[0], LMP90080_ReadRegReadAddress(uart1Message.data[0]));
+      //printf("%x : %x \r\n", uart1Message.data[0], LMP90080_ReadRegReadAddress(uart1Message.data[0]));
       break;
     case 0xE0: /* SPI Read Reg - Read Address */
-    	printf("%x : 0x%lx, %d\r\n", uart1Message.data[0], SY7T609_ReadReg(uart1Message.data[0]), SY7T609_ReadReg(uart1Message.data[0]));
+      printf("%x : 0x%lx, %d\r\n", uart1Message.data[0], SY7T609_ReadReg(uart1Message.data[0]), SY7T609_ReadReg(uart1Message.data[0]));
       break;
     case 0xE1: /* SPI Read Reg - Indirect Read Address */
-      if (uart1Message.data[0] == 0x01)
-      {
-        tmpData = SY7T609_ReadReg(0x5B);
-        //printf("Read 0x5B : %x", tmpData );
-        //SY7T609_WriteReg(0x5B, 0x123456);
-        tmpData = SY7T609_ReadReg(0x5B);
-        //printf("Read 0x44 : %x", tmpData);
-      }
-      if (uart1Message.data[0] == 0x02)
-      {
-        SY7T609_WriteReg(uart1Message.data[3], uart1Message.data[2]);
-      }
-      if (uart1Message.data[0] == 0x03) // read Reg
-      {
-        printf("%x : 0x%lx, %d\r\n", uart1Message.data[1], SY7T609_ReadReg(uart1Message.data[1]), SY7T609_ReadReg(uart1Message.data[1]));
-      }
-      if (uart1Message.data[0] == 0x03) // Write Reg
-      {
-        SY7T609_WriteReg(uart1Message.data[1], uart1Message.data[3]);
-        //printf("Write %x : %lx \r\n", uart1Message.data[1], uart1Message.data[1]);
-      }
+      SY7T609_WriteReg(uart1Message.data[0], (uart1Message.data[1] << 16) + (uart1Message.data[2] << 8) + uart1Message.data[3]);
+      break;
+    case 0xE2:
+      sendMessageToRS232(0xE2, (uint8_t *)&powerMeter, 4);
       break;
     case 0xE3:
       sendMessageToRS232(0xE3, (uint8_t *)&psTemperature, 4);
@@ -590,7 +564,7 @@ static void Proc_PS(void)
  * @brief 전력 센싱
  * 
  */
-static void Proc_Ct(void)
+static void Proc_Emp(void)
 {
   static uint32_t NT;
   uint32_t CT;
@@ -598,7 +572,7 @@ static void Proc_Ct(void)
   CT = HAL_GetTick();
   if (CT > NT)
   {
-    Current_Read((float *)&stIOStatus);
+    EMP_Read((float *)&stIOStatus);
     NT = CT + ((uint32_t)stIOConfig.Pm_Cycle << 10U);
   }
 }
@@ -619,7 +593,7 @@ static void Detect_ResetSW(void)
   {
     if (cntResetTime > 3000U) /* 3s */
     {
-      Reset_sw = 2U;
+      Reset_sw = 3U;
     }
     else if (cntResetTime > 1000U) /* 1s */
     {
@@ -627,23 +601,5 @@ static void Detect_ResetSW(void)
     }
 
     cntResetTime = 0U;
-  }
-}
-
-/**
- * @brief GPIO 인터럽트 처리
- * 
- * @param GPIO_Pin: GPIO 입력 핀 번호
- */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  if (GPIO_Pin == GPIO_PIN_4) /* PC4 */
-  {
-    //LMP90080_ReadReg_IT(0x1A);
-  }
-
-  if (GPIO_Pin == GPIO_PIN_5) /* PC5 - 임시 테스트용 */
-  {
-    //LMP90080_ReadReg_IT(0x1A);
   }
 }

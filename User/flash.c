@@ -177,10 +177,10 @@ void Flash_UserWrite4Byte(uint32_t flashWriteData, uint32_t addressIndex)
  *
  * @param firmwareData
  */
+uint16_t firmNumLast = 0;
 void procFirmwareUpdate(uint8_t *firmwareData)
 {
   int error = 1;
-  static uint16_t firmNumLast = 0;
   uint16_t firmNum = (((firmwareData[0] & 0x7F) << 8) + firmwareData[1]);
 
   /* 첫 패킷을 받았으면 지우기 */
@@ -213,8 +213,8 @@ void procFirmwareUpdate(uint8_t *firmwareData)
       firmwareData[1] = (firmNumLast - 1) & 0xFF;
 
   }
-  //sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
-  sendMessageToRS232(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
+  sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
+  //sendMessageToRS232(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
 
   if ((firmwareData[0] & 0x80) == 0x80) /* 펌웨어 전송 완료 */
   {

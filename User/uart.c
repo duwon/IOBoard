@@ -338,7 +338,7 @@ void sendMessageToRasPi(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
  * @param txData: Payload Data
  * @param dataLen: Payload Data 길이
  */
-uint8_t debug_txBuffer[100][20];
+uint8_t debug_txBuffer[500][20];
 uint8_t debug_txBufferIndex = 0;
 void sendMessageToRS232(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
 {
@@ -359,6 +359,7 @@ void sendMessageToRS232(uint8_t msgID, uint8_t *txData, uint8_t dataLen)
 
   HAL_UART_Transmit(&huart1, txPacket, dataLen + 5, 0xFFFF);
   memcpy(debug_txBuffer[debug_txBufferIndex++], txPacket, 20);
+  if(debug_txBufferIndex == 500) debug_txBufferIndex = 0;
   LED_Toggle(LD_RS232RDY);
 }
 
