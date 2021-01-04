@@ -30,5 +30,7 @@ void SY7T609_Cal(uint32_t VrmsTarget, uint32_t IrmsTarger);
 void EMP_Init(void);
 void EMP_Read(float *powerValue);
 void EMP_SaveEveragePower(void);
+void EMP_UpdateCalValue(uint8_t *CalValue);
+void EMP_GetCalValue(uint8_t *RetrunCalValue);
 
 #endif /* CURRENT_H__ */

@@ -63,7 +63,7 @@ typedef struct
   float Active;        /*!< 유효전력 */
   float Reactive;      /*!< 무효전력 */
   float Apparent;      /*!< 피상전력 */
-  float Active_Energy; /*!< 유효전력량 */
+  uint32_t Active_Energy; /*!< 유효전력량 */
   //-------------------------------- Odd I/O 상태값
   int16_t Rtd;    /*!< MSB=정수, LSB=소수점  온도*/
   uint16_t Dp;    /*!< MSB=정수, LSB=소수점  차압센서 */
@@ -105,14 +105,14 @@ void userStart(void)
 #ifdef DEBUG
   printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
 #endif
-  AIO_Init();     /* 내부 ADC 초기화 */
-  RTC_Load();     /* RTC IC와 내부 RTC에 동기화 */
-  RTD_Init();     /* RTD 센서 초기화 */
-  Uart_Init();    /* UART 통신 시작 */
-  LED_Init();     /* LED 초기화 */
-  Timer_Init();   /* 타이머 시작 */
-  EMP_Init(); /* EMP(전력측정) 초기화 */
-  RASPI_ON;       /* 라즈베리파이 전원 출력 */
+  AIO_Init();   /* 내부 ADC 초기화 */
+  RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
+  RTD_Init();   /* RTD 센서 초기화 */
+  Uart_Init();  /* UART 통신 시작 */
+  LED_Init();   /* LED 초기화 */
+  Timer_Init(); /* 타이머 시작 */
+  EMP_Init();   /* EMP(전력측정) 초기화 */
+  RASPI_ON;     /* 라즈베리파이 전원 출력 */
 
   memcpy(&stIOConfig, (unsigned char *)FLASH_SYSTEM_CONFIG_ADDRESS, sizeof(stIOConfig)); /*  IO보드 설정값 불러 오기 */
   if ((stIOConfig.Pm_Hz == 0) || stIOConfig.Pm_Hz == 255)                                /* IO보드 설정값이 없으면 기본 값으로 설정 */
@@ -222,7 +222,7 @@ static void Check_Todo(void)
   Raspberry_Timer++; /* 라즈베리 통신 시간 체크 */
 
   HAL_IWDG_Refresh(&hiwdg);
-  LED_Toggle(LD_RDY); /* 1초 간격 브링크 */
+  LED_Toggle(LD_RDY); /* 1초 간격 LED 토글 */
 
   //------------------------------ Reset SW
   switch (Reset_sw)
@@ -287,18 +287,17 @@ static void Proc_RasPI(void)
     switch (uart4Message.msgID)
     {
     case MSGCMD_REQUEST_TIME:
-      Raspberry_Timer = 0;
+      Raspberry_Timer = 0U;
       RTC_Get(txData); /* txData[5:0] */
-      txData[6] = VERSION_MAJOR;
-      txData[7] = VERSION_MINOR;
-      sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
+      txData[6] = (VERSION_MAJOR * 10U) + VERSION_MINOR;
+      sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 1U);
       break;
     case MSGCMD_UPDATE_CONFIG:
       if (memcmp(&stIOConfig, uart4Message.data, sizeof(stIOConfig)) != 0)
       {
         memcpy(&stIOConfig, uart4Message.data, sizeof(stIOConfig));
+        System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig)); // (config 변경 시만 저장하도록)
       }
-      System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
       sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_REQUEST_CONFIG:
@@ -307,23 +306,28 @@ static void Proc_RasPI(void)
     case MSGCMD_UPDATE_TIME:
       RTC_Set(uart4Message.data);
       RTC_Get(txData); /* txData[5:0] */
-      txData[6] = VERSION_MAJOR;
-      txData[7] = VERSION_MINOR;
-      sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
+      txData[6] = (VERSION_MAJOR * 10U) + VERSION_MINOR;
+      sendMessageToRasPi(MSGCMD_RESPONSE_TIME, txData, 6U + 1U);
       break;
     case MSGCMD_UPDATE_FW:
       flag_receiveFWImage = true;
       procFirmwareUpdate(uart4Message.data);
       break;
-    case MSGCMD_UPDATE_WATEMETER_CAL:
+    case MSGCMD_CAL_WATEMETER:
       SY7T609_Cal((uint32_t)stIOConfig.Pm_Volt * 1000, (uint32_t)stIOConfig.Pm_Current * 100); /* mV, mA */
       break;
-    case MSGCMD_REQUEST_WATMETER_VAL:
-      printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
+    case MSGCMD_REQUEST_CAL_VALUE:
+      EMP_GetCalValue(txData);
+      sendMessageToRasPi(MSGCMD_RESPONSE_CAL_VALUE, txData, 8U);
+      break;
+    case MSGCMD_UPDATE_CAL_VALUE:
+      EMP_UpdateCalValue(uart4Message.data);
+      break;
+    case MSGCMD_RESET_WATEMTER_VAL:
+      sumPowerMeter = 0;
+      RTC_SaveValue(sumPowerMeter); /* RTC SRAM에 저장된 값을 초기화 */
       break;
     case MSGCMD_SET_DO:
-      DO_Write(0, uart4Message.data[0]);
-      DO_Write(1, uart4Message.data[1]);
       stIOStatus.Do[0] = uart4Message.data[0];
       stIOStatus.Do[1] = uart4Message.data[1];
       break;
@@ -360,18 +364,17 @@ static void Proc_RS232(void)
     switch (uart1Message.msgID)
     {
     case MSGCMD_REQUEST_TIME:
-      Raspberry_Timer = 0;
+      Raspberry_Timer = 0U;
       RTC_Get(txData); /* txData[5:0] */
-      txData[6] = VERSION_MAJOR;
-      txData[7] = VERSION_MINOR;
-      sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
+      txData[6] = (VERSION_MAJOR * 10U) + VERSION_MINOR;
+      sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 1U);
       break;
     case MSGCMD_UPDATE_CONFIG:
       if (memcmp(&stIOConfig, uart1Message.data, sizeof(stIOConfig)) != 0)
       {
         memcpy(&stIOConfig, uart1Message.data, sizeof(stIOConfig));
+        System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
       }
-      System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
       sendMessageToRS232(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
     case MSGCMD_REQUEST_CONFIG:
@@ -380,27 +383,28 @@ static void Proc_RS232(void)
     case MSGCMD_UPDATE_TIME:
       RTC_Set(uart1Message.data);
       RTC_Get(txData); /* txData[5:0] */
-      txData[6] = VERSION_MAJOR;
-      txData[7] = VERSION_MINOR;
-      sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 2U);
+      txData[6] = (VERSION_MAJOR * 10U) + VERSION_MINOR;
+      sendMessageToRS232(MSGCMD_RESPONSE_TIME, txData, 6U + 1U);
       break;
     case MSGCMD_UPDATE_FW:
       flag_receiveFWImage = true;
       procFirmwareUpdate(uart1Message.data);
       break;
-    case MSGCMD_UPDATE_WATEMETER_CAL:
+    case MSGCMD_CAL_WATEMETER:
       SY7T609_Cal((uint32_t)stIOConfig.Pm_Volt * 1000, (uint32_t)stIOConfig.Pm_Current * 100); /* mV, mA */
       break;
-    case MSGCMD_REQUEST_WATMETER_VAL:
-      printf("MSGCMD_REQUEST_WATMETER_VAL\r\n");
-      for(int i=0; i<0x5F; i++)
-      {
-        printf("%x,%x\r\n",i,SY7T609_ReadReg(i));
-      }
+    case MSGCMD_REQUEST_CAL_VALUE:
+      EMP_GetCalValue(txData);
+      sendMessageToRS232(MSGCMD_RESPONSE_CAL_VALUE, txData, 8U);
+      break;
+    case MSGCMD_UPDATE_CAL_VALUE:
+      EMP_UpdateCalValue(uart1Message.data);
+      break;
+    case MSGCMD_RESET_WATEMTER_VAL:
+      sumPowerMeter = 0;
+      RTC_SaveValue(sumPowerMeter); /* RTC SRAM에 저장된 값을 초기화 */
       break;
     case MSGCMD_SET_DO:
-      DO_Write(0, uart1Message.data[0]);
-      DO_Write(1, uart1Message.data[1]);
       stIOStatus.Do[0] = uart1Message.data[0];
       stIOStatus.Do[1] = uart1Message.data[1];
       break;
@@ -412,7 +416,7 @@ static void Proc_RS232(void)
       //LMP90080_Test();
       //PSENOR_Read();
       //printf("RTD : %d.%d\r\n", (int)LMP90080_ReadRTD(), (int)((LMP90080_ReadRTD() - (int)LMP90080_ReadRTD())*100));//(int)(LMP90080_ReadRTD() * 100));
-      printf("psTemp : %d.%d\r\n",(int)psTemperature, (int)((psTemperature - (int)psTemperature)*100));
+      printf("psTemp : %d.%d\r\n", (int)psTemperature, (int)((psTemperature - (int)psTemperature) * 100));
       break;
     case 0xD2: /* test 2 */
       //printf("TEST2 \r\n");
@@ -476,13 +480,21 @@ static void Proc_DO(void)
   static uint32_t NT = 0;
   uint32_t CT;
 
-  CT = HAL_GetTick();
-  if (CT > NT)
+  if(NT== 0) /* 처음 시작 시 config 값 반영 */
   {
     for (int i = 0; i < 2; i++)
     {
       DO_Write(i, stIOConfig.Do[i]);
       stIOStatus.Do[i] = stIOConfig.Do[i];
+    }
+  }
+
+  CT = HAL_GetTick();
+  if (CT > NT)
+  {
+    for (int i = 0; i < 2; i++)
+    {
+      DO_Write(i, stIOStatus.Do[i]);
     }
     NT = CT + 1000;
   }
@@ -573,6 +585,7 @@ static void Proc_Emp(void)
   if (CT > NT)
   {
     EMP_Read((float *)&stIOStatus);
+    stIOStatus.Active_Energy = (uint32_t)(sumPowerMeter / 1000);
     NT = CT + ((uint32_t)stIOConfig.Pm_Cycle << 10U);
   }
 }

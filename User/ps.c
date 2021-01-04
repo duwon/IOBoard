@@ -24,7 +24,7 @@
   */
 
 float psTemperature = 0U;						 /*!> 온도 : 0.1도 해상도 */
-static uint16_t DpValue[PS_SENSING_AVERAGE_CNT]; /*!< 압력센서 값 저장 버퍼 */
+static uint16_t PsValue[PS_SENSING_AVERAGE_CNT]; /*!< 압력센서 값 저장 버퍼 */
 static uint32_t PSSum;							 /*!< 압력센서 합 */
 
 /**
@@ -40,7 +40,7 @@ uint16_t PS_Read(void)
 {
 	uint16_t pressValue = 0U;
 	pressValue = PSSum / PS_SENSING_AVERAGE_CNT;
-	memset((void *)DpValue, 0, sizeof(DpValue));
+	memset((void *)PsValue, 0, sizeof(PsValue));
 	PSSum = 0;
 	return pressValue;
 }
@@ -69,16 +69,16 @@ void PSStart(void)
 	{
 		pressValue = (float)((psBar - PS_OUTPUT_MIN) * PS_FORCE_RATED) / (float)(PS_OUTPUT_MAX - PS_OUTPUT_MIN);
 
-		DpValue[PSAverageCnt] = (uint16_t)((pressValue - 1) * 1000);
+		PsValue[PSAverageCnt] = (uint16_t)((pressValue - 1) * 1000);
 
-		PSSum += DpValue[PSAverageCnt++];
+		PSSum += PsValue[PSAverageCnt++];
 
 		if (PSAverageCnt >= PS_SENSING_AVERAGE_CNT)
 		{
 			PSAverageCnt = 0;
 		}
 
-		PSSum -= DpValue[PSAverageCnt];
+		PSSum -= PsValue[PSAverageCnt];
 	}
 }
 

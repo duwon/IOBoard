@@ -9,7 +9,7 @@
   */
 
 #include "led.h"
-#include "aio.h"
+#include "rtd.h"
 
 /** @defgroup LED LED 제어 함수
   * @brief 지정된 LED 파라미터의 제어

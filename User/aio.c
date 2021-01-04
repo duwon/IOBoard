@@ -102,6 +102,9 @@ void ADCStart(void)
   {
     float Vref = 1.2f * 4096.0f / (float)(ADCValue[3]); /* Vref 보정 값 */
     flag_ADCDone = false;
+
+    if(ADCValue[2] < DP_ADC_MINIMUM_VALUE)  ADCValue[2] = DP_ADC_MINIMUM_VALUE; 
+
     /* AI0, AI1 실크가 바뀐듯 */
     AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000000 / 4096.0f / 20.0f);
     AiValue[0][AIAverageCnt] = (uint16_t)((float)(ADCValue[1]) * Vref * 1000000 / 4096.0f / 20.0f); /* (ADC값 / 2^12) * Vref * 20옴 * uA */
