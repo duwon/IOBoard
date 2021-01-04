@@ -181,7 +181,17 @@ uint16_t firmNumLast = 0;
 void procFirmwareUpdate(uint8_t *firmwareData)
 {
   int error = 1;
-  uint16_t firmNum = (((firmwareData[0] & 0x7F) << 8) + firmwareData[1]);
+  uint8_t eflag = 0;
+  uint16_t firmNum;
+
+  firmNum = (firmwareData[0] & 0x7F) * 256;
+  firmNum += firmwareData[1];
+
+  if (firmNum == 0)
+    firmNumLast = 0;
+
+  if ((firmwareData[0] & 0x80) == 0x80)
+    eflag = 1;
 
   /* 첫 패킷을 받았으면 지우기 */
   if ((firmNum == 0) && (firmNumLast == 0))
@@ -193,35 +203,40 @@ void procFirmwareUpdate(uint8_t *firmwareData)
   {
     if (Flash_FwWrite(firmNum, (uint32_t *)&firmwareData[2]) == SUCCESS)
     {
-      firmNumLast++;
+      firmNumLast = firmNum + 1;
       error = 0;
     }
     else
     {
       /* error 처리 */
-    	error = 1;
+      error = 1;
     }
   }
-  else if (firmNumLast != 0)
+  else
   {
-	  error = 1;
+    if (firmNumLast != 0)
+    {
+      error = 1;
+    }
   }
 
-  if(error == 1)
+  if (error == 0)
   {
-      firmwareData[0] = ((firmNumLast - 1) >> 8U) & 0xFF;
-      firmwareData[1] = (firmNumLast - 1) & 0xFF;
+    firmwareData[0] = (firmNumLast - 1) / 256;
+    firmwareData[1] = (firmNumLast - 1) % 256;
+    if (eflag)
+      firmwareData[0] |= 0x80;
 
-  }
-  sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
-  //sendMessageToRS232(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
+    sendMessageToRasPi(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
+    //sendMessageToRS232(MSGCMD_RESPONSE_FW_ACK, firmwareData, 2);
 
-  if ((firmwareData[0] & 0x80) == 0x80) /* 펌웨어 전송 완료 */
-  {
-    (void)Update_Config_Erase();
-    Update_Config_Write((((firmwareData[0] & 0x7F) << 8) + firmwareData[1]) + 1);
-    printf("OK");
-    NVIC_SystemReset();
+    if (eflag == 1) /* 펌웨어 전송 완료 */
+    {
+      (void)Update_Config_Erase();
+      Update_Config_Write((((firmwareData[0] & 0x7F) << 8) + firmwareData[1]) + 1);
+      printf("OK");
+      NVIC_SystemReset();
+    }
   }
 }
 
