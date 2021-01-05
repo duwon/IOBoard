@@ -30,14 +30,32 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM);	/* end of "RAM" Ram type memory */
 
-_Min_Heap_Size = 0x200;	/* required amount of heap  */
-_Min_Stack_Size = 0x400;	/* required amount of stack */
+_Min_Heap_Size = 0x200 ;	/* required amount of heap  */
+_Min_Stack_Size = 0x400 ;	/* required amount of stack */
 
+/* Bootloader memory
+  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 48K
+  FLASH   (rx)    : ORIGIN = 0x8000000,	   LENGTH = 24K
+*/
+/* Application memory
+  RAM    (xrw)    : ORIGIN = 0x20000000,    LENGTH = 48K
+  BOOT    (rx)    : ORIGIN = 0x08000000,	LENGTH = 12K
+  FLASH   (rx)    : ORIGIN = 0x08003000,    LENGTH = 100K
+  FW_INFO (rx)    : ORIGIN = 0x0801C000,    LENGTH = 2K
+  FW      (rx)    : ORIGIN = 0x0801D000,    LENGTH = 100K
+  CONFIG  (rx)    : ORIGIN = 0x08036000,    LENGTH = 2K
+  USER    (rx)    : ORIGIN = 0x0803F800,    LENGTH = 2K
+*/
 /* Memories definition */
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 48K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 256K
+  RAM    (xrw)    : ORIGIN = 0x20000000,    LENGTH = 48K
+  BOOT    (rx)    : ORIGIN = 0x08000000,	LENGTH = 12K
+  FLASH   (rx)    : ORIGIN = 0x08003000,    LENGTH = 100K
+  FW_INFO (rx)    : ORIGIN = 0x0801C000,    LENGTH = 2K
+  FW      (rx)    : ORIGIN = 0x0801D000,    LENGTH = 100K
+  CONFIG  (rx)    : ORIGIN = 0x08036000,    LENGTH = 2K
+  USER    (rx)    : ORIGIN = 0x0803F800,    LENGTH = 2K
 }
 
 /* Sections */

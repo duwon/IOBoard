@@ -64,3 +64,5 @@ dkms.conf
 *.duwon
 *.lst
 
+Documents/
+*.zip
