@@ -181,10 +181,10 @@ void EMP_Init(void)
   SY7T609_WriteReg(0x51U, 130273); /* PScale - Power scaling register. 667kV * 50A / 0.001 / 256 */
   SY7T609_WriteReg(0x51U, 130273); /* PScale - Power scaling register. */
   SY7T609_WriteReg(0x51U, 130273); /* PScale - Power scaling register. */
-  SY7T609_WriteReg(0x40U, 723);    /* Bucket Register High */
-  SY7T609_WriteReg(0x40U, 723);
-  SY7T609_WriteReg(0x41U, 7621385); /* Bucket Register Low */
-  SY7T609_WriteReg(0x41U, 7621385);
+  SY7T609_WriteReg(0x40U, 3999366);
+  SY7T609_WriteReg(0x40U, 3999366); /* Bucket Register Low */
+  SY7T609_WriteReg(0x41U, 723);    /* Bucket Register High */
+  SY7T609_WriteReg(0x41U, 723);
   if (SY7T609_ReadReg(0x47U) == 0x200000) /* IC 초기 값이면 */
   {
     SY7T609_WriteReg(0x48U, CAL_VGAIN); /* vgain - Voltage gain set. */
