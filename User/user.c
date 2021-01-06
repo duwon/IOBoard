@@ -316,6 +316,9 @@ static void Proc_RasPI(void)
     case MSGCMD_CAL_WATEMETER:
       SY7T609_Cal((uint32_t)stIOConfig.Pm_Volt * 1000, (uint32_t)stIOConfig.Pm_Current * 100); /* mV, mA */
       break;
+    case MSGCMD_CAL_WATEMETER_OFFSET:
+      SY7T609_Cal_Offset();
+      break;
     case MSGCMD_REQUEST_CAL_VALUE:
       EMP_GetCalValue(txData);
       sendMessageToRasPi(MSGCMD_RESPONSE_CAL_VALUE, txData, 8U);
@@ -442,6 +445,7 @@ static void Proc_RS232(void)
       break;
     case 0xE2:
       sendMessageToRS232(0xE2, (uint8_t *)&powerMeter, 4);
+      sendMessageToRS232(0xE4, (uint8_t *)&sumPowerMeter, 8);
       break;
     case 0xE3:
       sendMessageToRS232(0xE3, (uint8_t *)&psTemperature, 4);

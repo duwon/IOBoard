@@ -3,8 +3,8 @@
 
 #include "main.h"
 
-#define CAL_IGAIN 0x14BAB  /* 0x47U Default Value */
-#define CAL_VGAIN 0x20E66B /* 0x48U Default Value */
+#define CAL_IGAIN 0x3D0BA  /* 0x47U Default Value */
+#define CAL_VGAIN 0x200000 /* 0x48U Default Value */
 
 #define COMMAND_SAVETOFALSH    0 /* Save to Flash Command */
 #define COMMAND_AUTOREPORTING_CLR  1 /* Auto Reporting Command - Clear Control.ar */
@@ -26,6 +26,7 @@ void SY7T609_Test(void);
 uint32_t SY7T609_ReadReg(uint8_t regNum);
 void SY7T609_WriteReg(uint8_t regNum, uint32_t regData);
 void SY7T609_Cal(uint32_t VrmsTarget, uint32_t IrmsTarger);
+void SY7T609_Cal_Offset(void);
 
 void EMP_Init(void);
 void EMP_Read(float *powerValue);
