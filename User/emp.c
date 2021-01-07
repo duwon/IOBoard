@@ -15,8 +15,8 @@
 
 uint8_t spi3RxBuffer[10];                /*!< EMP SPI - SY7T609 수신 버퍼 */
 static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 플래그, false로 변경해야 수신 가능 */
-float powerMeter = 0;                    /*!< 현재 소비전력 W */
-uint64_t sumPowerMeter = 0;              /*!< 소비전력 mWh */
+float powerMeter = 0;                    /*!< 순간 소비전력 W */
+uint64_t sumPowerMeter = 0;              /*!< 누적 소비전력 mWh */
 
 static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
 static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
