@@ -158,7 +158,7 @@ int16_t RTD_Read(void)
  * @brief RTD 센싱
  * 
  */
-void RTDSTart(void)
+void RTDStart(void)
 {
   static uint8_t rtdAverageCnt = 0;
 

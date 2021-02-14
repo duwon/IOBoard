@@ -13,10 +13,14 @@
 #include "spi.h"
 #include "timer.h"
 
-uint8_t spi3RxBuffer[10];                /*!< EMP SPI - SY7T609 수신 버퍼 */
+uint8_t spi3RxBuffer[10];                /*!< EMP SPI - SY7T609 수신 버퍼 - 현재 DMA 사용하지 않음 */
 static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 플래그, false로 변경해야 수신 가능 */
-float powerMeter = 0;                    /*!< 현재 소비전력 W */
 uint64_t sumPowerMeter = 0;              /*!< 소비전력 mWh */
+static int flag_CalDone = false;         /*!< Calibration 완료 Flag */
+float sensingPower = 0;                  /*!< 측정값 - 현재 소비전력 W */
+static uint32_t sensingVoltage;          /*!< 설정값 - 입력전압. V*/
+static uint32_t sensingRatio;            /*!< 설정값 - 외부 CT 배율. 6~140 */
+static uint32_t sensingPhase;            /*!< 설정값 - 단상 or 3상. 0 단상*/
 
 static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
 static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
@@ -112,13 +116,19 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 }
 
+/**
+ * @brief Convert Singed 24bit to Singed 32bit.
+ * 
+ * @param s24Data: signed 24bit data
+ * @return int: Converted signed 32bit data
+ */
 static int S24ToS32(uint32_t s24Data)
 {
   int cnvInt = 0;
-  if ((s24Data & 0x800000) == 0x800000)
+  if ((s24Data & 0x800000) == 0x800000) /* 음수 ? */
   {
     cnvInt |= 0xFF000000;
-    cnvInt |= s24Data; //& 0x7FFFFF;
+    cnvInt |= s24Data;
   }
   else
   {
@@ -128,6 +138,11 @@ static int S24ToS32(uint32_t s24Data)
   return cnvInt;
 }
 
+/**
+ * @brief Read register data of EMP IC.
+ * 
+ * @param powerValue: [0]Volt [1]Current [2]Power Factor [3]Active Power [4]Reactive Power [5]Apparent Power
+ */
 void EMP_Read(float *powerValue)
 {
   powerValue[0] = (float)SY7T609_ReadReg(0x11U) / 1000.0f;           /* VRMS U24 N Scaled RMS Voltage */
@@ -172,6 +187,10 @@ void EMP_Read(float *powerValue)
   //SY7T609_ReadReg(0x22U); /* VAharm S24 N Scaled Harmonic Apparent Power NA */
 }
 
+/**
+ * @brief Initialize the EMP IC.
+ * 
+ */
 void EMP_Init(void)
 {
   SY7T609_WriteReg(0x02U, 0x001815); /* Control */
@@ -216,7 +235,6 @@ void EMP_Init(void)
   }
 }
 
-int flag_CalDone = false;
 /**
  * @brief Cal 수행
  * 
@@ -235,7 +253,7 @@ void SY7T609_Cal(uint32_t VrmsTarget, uint32_t IrmsTarger)
 }
 
 /**
- * @brief igain 값과 vgain 값을 저장한다.
+ * @brief Save the igain and vgain values.
  * 
  * @param CalValue: igain, vgain Each Unsigned int 4byte
  */
@@ -252,7 +270,7 @@ void EMP_UpdateCalValue(uint8_t *CalValue)
 }
 
 /**
- * @brief igain 값과 vgain 값을 리턴한다.
+ * @brief Returns the igain and vgain values.
  * 
  * @param RetrunCalValue: igain, vgain Each Unsigned int 4byte
  */
@@ -266,27 +284,53 @@ void EMP_GetCalValue(uint8_t *RetrunCalValue)
   memcpy((void *)&RetrunCalValue[4], (void *)&vgain, 4);
 }
 
+void EMP_SetDefaultValue(uint8_t ratio, uint8_t volt, uint8_t phase)
+{
+  switch(volt)
+  {
+    case 0:
+    sensingVoltage = 220;
+    break;
+    case 1:
+    sensingVoltage = 380;
+    break;
+    case 2:
+    sensingVoltage = 460;
+    break;
+    default:
+    break;
+  }
+
+  sensingRatio = ratio;
+  sensingPhase = phase;
+}
+
+/**
+ * @brief Return RMS Current
+ * 
+ * @return uint32_t: mA
+ */
+uint32_t EMP_GetRMSCurrent(void)
+{
+  uint32_t rmsCurrent;
+  rmsCurrent = SY7T609_ReadReg(0x12U) >> 10;          //128000 /* IRMS U24 N Scaled RMS Current */
+  rmsCurrent = SY7T609_ReadReg(0x12U) >> 10;          /* IRMS U24 N Scaled RMS Current */
+
+  return rmsCurrent; /* 전류 Offet 보정식 추가 필요 */
+}
+
+/**
+ * @brief It is called once every second to calculate the average power.
+ * 
+ */
 void EMP_SaveEveragePower(void)
 {
 #ifdef DEBUG
-  powerMeter = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 1000.0f; /* 테스트 용 */
+  sensingPower = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 1000.0f; /* 테스트 용 */
 #endif
-  static int cnt60sTimer = 0;
+
+  /**** Save calibaration data ****/
   static int cntCalDone = 0;
-
-  uint32_t everagePower = 0;
-  everagePower = SY7T609_ReadReg(0x17U);
-  everagePower = SY7T609_ReadReg(0x17U);
-  cnt60sTimer++;
-
-  sumPowerMeter += (uint64_t)(S24ToS32(everagePower) / 3600);
-
-  if (cnt60sTimer >= 60) /* 주기적(1분)으로 RTC SRAM에 소비전력 저장 */
-  {
-    RTC_SaveValue(sumPowerMeter);
-    cnt60sTimer = 0;
-  }
-
   if (flag_CalDone) /* Calibration 후 10초 뒤 Cal 값 Flash에 저장 */
   {
     cntCalDone++;
@@ -297,8 +341,33 @@ void EMP_SaveEveragePower(void)
       flag_CalDone = false;
     }
   }
+
+  /**** Cal average power ****/
+#if 0
+  uint32_t avgPower = 0;
+  avgPower = SY7T609_ReadReg(0x17U);
+  avgPower = SY7T609_ReadReg(0x17U);
+
+  sumPowerMeter += (uint64_t)(S24ToS32(avgPower) / 3600);
+
+#else
+  sumPowerMeter += (uint64_t)(EMP_GetRMSCurrent() * sensingRatio * sensingVoltage / 1000 / 3600); /* 계산식 수정 필요 */
+#endif
+
+  /**** Save average power ****/
+  static int cnt60sTimer = 0;
+  cnt60sTimer++;
+  if (cnt60sTimer >= 60) /* 주기적(1분)으로 RTC SRAM에 소비전력 저장 */
+  {
+    RTC_SaveValue(sumPowerMeter);
+    cnt60sTimer = 0;
+  }
 }
 
+/**
+ * @brief Calibration Offset. Voltage and Current
+ * 
+ */
 void SY7T609_Cal_Offset(void)
 {
   SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_CAL_IOFFS] | EMP_COMMAND[COMNAND_CAL_VOFFS]);

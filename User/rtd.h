@@ -14,7 +14,7 @@
   */
 
 void RTD_Init(void);
-void RTDSTart(void); /*!< RTD 평균을 위한 센싱 시작 함수 */
+void RTDStart(void); /*!< RTD 평균을 위한 센싱 시작 함수 */
 int16_t RTD_Read(void);
 
 void LMP90080_GPIO_Write(uint8_t PinNum, uint8_t PinState);

@@ -19,7 +19,7 @@
 
 static const uint32_t EMP_COMMAND[10] = {0xACC200, 0xAE000, 0xAE001, 0xEC0000, 0xBD0000, 0xCA0100, 0xCA0020, 0xCA0010, 0xCA0008, 0xCA0004};
 
-extern float powerMeter;
+extern float sensingPower;
 extern uint64_t sumPowerMeter;
 
 void SY7T609_Test(void);
@@ -33,5 +33,6 @@ void EMP_Read(float *powerValue);
 void EMP_SaveEveragePower(void);
 void EMP_UpdateCalValue(uint8_t *CalValue);
 void EMP_GetCalValue(uint8_t *RetrunCalValue);
+void EMP_SetDefaultValue(uint8_t ratio, uint8_t volt, uint8_t phase);
 
 #endif /* CURRENT_H__ */
