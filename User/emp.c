@@ -145,6 +145,7 @@ static int S24ToS32(uint32_t s24Data)
  */
 void EMP_Read(float *powerValue)
 {
+#if 0
   powerValue[0] = (float)SY7T609_ReadReg(0x11U) / 1000.0f;           /* VRMS U24 N Scaled RMS Voltage */
   powerValue[0] = (float)SY7T609_ReadReg(0x11U) / 1000.0f;           /* VRMS U24 N Scaled RMS Voltage */
   powerValue[1] = (float)SY7T609_ReadReg(0x12U) / 10000.0f;          //128000 /* IRMS U24 N Scaled RMS Current */
@@ -157,7 +158,15 @@ void EMP_Read(float *powerValue)
   powerValue[4] = (float)S24ToS32(SY7T609_ReadReg(0x14U)) / 1000.0f; /* VAR S24 N Scaled Reactive Power */
   powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 1000.0f; /* VA S24 N Scaled Apparent Power */
   powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 1000.0f; /* VA S24 N Scaled Apparent Power */
-
+#else
+powerValue[0] = (float)sensingVoltage;
+powerValue[1] = (float)SY7T609_ReadReg(0x12U) * sensingRatio / 10000.0f;          //128000 /* IRMS U24 N Scaled RMS Current */
+powerValue[1] = (float)SY7T609_ReadReg(0x12U) * sensingRatio / 10000.0f;          //128000 /* IRMS U24 N Scaled RMS Current */
+powerValue[2] = 0.65f;
+powerValue[5] = powerValue[0] * powerValue[1];
+powerValue[3] = powerValue[5] * powerValue[2];
+powerValue[4] = powerValue[5] * 0.86f;
+#endif
   //powerValue[6] = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 20000.0f; /* avgpower S24 N Scaled Average Active Power */
   //powerValue[2] = (8388608.0f - (float)SY7T609_ReadReg(0x18U)) / 200.0f; /* PF S24 N Scaled Power Factor */
   //powerValue[3] = (8388608.0f - (float)SY7T609_ReadReg(0x13U)) / 200.0f; /* Power S24 N Scaled Active Power */
@@ -351,7 +360,7 @@ void EMP_SaveEveragePower(void)
   sumPowerMeter += (uint64_t)(S24ToS32(avgPower) / 3600);
 
 #else
-  sumPowerMeter += (uint64_t)(EMP_GetRMSCurrent() * sensingRatio * sensingVoltage / 1000 / 3600); /* 계산식 수정 필요 */
+  sumPowerMeter += (uint64_t)(EMP_GetRMSCurrent() * sensingRatio * sensingVoltage * 0.65 / 3600); /* 계산식 수정 필요 */
 #endif
 
   /**** Save average power ****/
