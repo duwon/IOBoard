@@ -33,6 +33,6 @@ void EMP_Read(float *powerValue);
 void EMP_SaveEveragePower(void);
 void EMP_UpdateCalValue(uint8_t *CalValue);
 void EMP_GetCalValue(uint8_t *RetrunCalValue);
-void EMP_SetDefaultValue(uint8_t ratio, uint8_t volt, uint8_t phase);
+void EMP_SetDefaultValue(uint8_t ratio, uint8_t volt, uint8_t phase, uint8_t pf);
 
 #endif /* CURRENT_H__ */

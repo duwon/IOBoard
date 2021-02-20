@@ -77,14 +77,15 @@ void LED_Toggle(Led_TypeDef Led)
  */
 void LED_Init(void)
 {
-  for (int i = 0; i < LEDPORTn + 3; i++)
+  for (int j = 0; j < 20; j++)
   {
-    LED_On(i);
-  }
-  HAL_Delay(500);
-  for (int i = 0; i < LEDPORTn + 3; i++)
-  {
-    LED_Off(i);
+    for (int i = 0; i < LEDPORTn + 3; i++)
+      LED_On(i);
+    HAL_Delay(50);
+
+    for (int i = 0; i < LEDPORTn + 3; i++)
+      LED_Off(i);
+    HAL_Delay(50);
   }
 }
 
