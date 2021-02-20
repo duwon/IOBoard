@@ -35,8 +35,8 @@
 #include "dio.h"
 #include "led.h"
 #include "rtd.h"
-#include <emp.h>
-#include <ps.h>
+#include "emp.h"
+#include "ps.h"
 
 #pragma pack(push, 1) /* 1바이트 크기로 정렬  */
 typedef struct
@@ -51,6 +51,10 @@ typedef struct
   uint16_t Pm_Volt;   /*!< 파워메터 기준진압                 초기값 220 */
   uint8_t Pm_Current; /*!< 파워메터 기준전류  100 -> 10.0 A  초기값 50 */
   uint8_t Pm_Hz;      /*!< 파워메터 기준주파수               초기값 60 */
+  uint8_t Ratio;      /*!< 외부 CT 배율    6배=(30/5) ~ 140배(700/5) */
+  uint8_t Volt;       /*!< 입력전압	   0=220, 1=380, 2=460 */
+  uint8_t Phase;      /*!< 상종류	   0=단상, 1=3상 */
+  uint8_t Pf;         /*!< Power Factor   기본 값 65 -> 0.65 */
 } Io_Config_TypeDef;
 #pragma pack(pop)
 
@@ -65,19 +69,19 @@ typedef struct
   float Apparent;      /*!< 피상전력 */
   uint32_t Active_Energy; /*!< 유효전력량 */
   //-------------------------------- Odd I/O 상태값
-  int16_t Rtd;    /*!< MSB=정수, LSB=소수점  온도*/
-  uint16_t Dp;    /*!< MSB=정수, LSB=소수점  차압센서 */
-  uint16_t Ps;    /*!< MSB=정수, LSB=소수점  압력센서 */
-  uint16_t Ai[2]; /*!< MSB=정수, LSB=소수점 */
-  uint8_t Di[4];  /*!< 0=Off, 1=On */
-  uint8_t Do[2];  /*!< 0=Off, 1=On */
+  int16_t Rtd;         /*!< MSB=정수, LSB=소수점  온도*/
+  uint16_t Dp;         /*!< MSB=정수, LSB=소수점  차압센서 */
+  uint16_t Ps;         /*!< MSB=정수, LSB=소수점  압력센서 */
+  uint16_t Ai[2];      /*!< MSB=정수, LSB=소수점 */
+  uint8_t Di[4];       /*!< 0=Off, 1=On */
+  uint8_t Do[2];       /*!< 0=Off, 1=On */
 } Io_Status_TyeDef;
 
 static Io_Config_TypeDef stIOConfig; /*!< IO Board 설정값 */
 static Io_Status_TyeDef stIOStatus;  /*!< IO Board 상태정보 */
 
-static uint32_t Raspberry_Timer = 0; /*!< 라즈베리파이 통신 불량시 카운트 */
-static uint8_t Reset_sw = 0; /*!< 리셋 스위치 누름 시간 */
+static uint32_t Raspberry_Timer = 0; /*!< 라즈베리파이 통신 불량시 카운트. 단위 : 초 */
+static uint8_t Reset_sw = 0;         /*!< 리셋 스위치 누름 시간 카운트. 단위 : 초 */
 
 static bool flag_receiveFWImage = false; /*!< 펌웨어 업데이트 중 상태 플래그 */
 
@@ -119,7 +123,9 @@ void userStart(void)
   {
     setDefaultConfig();
   }
-  //initMessage(&uart1Message, Proc_RS232); /* user1msLoop 함수에서 처리하지 않고 메시지 수신시 바로 응답 용*/
+  EMP_SetDefaultValue(stIOConfig.Ratio, stIOConfig.Volt, stIOConfig.Phase, stIOConfig.Pf); /* CT 배율, 입력전압, 상종류 설정 */
+
+  //initMessage(&uart1Message, Proc_RS232); /* user1msLoop 함수에서 처리하지 않고 메시지 수신시 바로 응답 용 */
 }
 
 /**
@@ -131,31 +137,36 @@ void userLoop(void)
   procMesssage(&uart4Message, &uart4Buffer); /* 라즈베리파이(UART4) 메시지 처리 */
   procMesssage(&uart1Message, &uart1Buffer); /* RS232(UART1) 메시지 처리 */
 
-  if (flag_receiveFWImage == true) /* 펌웨어 업로드 요청 시 다른 작업 수행하지 않고 메시지 처리만 */
+  if (flag_saveEveragePower) /* 16ms마다 전력 센싱 */
+  {
+    EMP_SaveEveragePower();
+  }
+
+  if (flag_receiveFWImage) /* 펌웨어 업로드 요청 시 다른 작업 수행하지 않고 메시지 처리만 */
   {
     Proc_RasPI(); /* 라즈베리파이 수신 메시지 처리 */
     Proc_RS232(); /* RS232 포트 수신 메시지 처리 */
   }
-  else if (flag_1mSecTimerOn == true) /* 1ms 마다 1msLoop 함수 호출 */
+  else if (flag_1mSecTimerOn) /* 1ms 마다 1msLoop 함수 호출 */
   {
     Detect_ResetSW(); /* RESET 스위치 입력 확인 */
     user1msLoop();    /* 사용자 1ms Loop함수 호출 */
     flag_1mSecTimerOn = false;
   }
 
-  if (flag_10mSecTimerOn == true) /* 주기적 센싱 실행 */
+  if (flag_10mSecTimerOn) /* 10ms 주기적 센싱 실행 */
   {
     ADCStart(); /* ADC 수행 - AIN, DS */
-    RTDSTart(); /* RTD 수행 */
+    RTDStart(); /* RTD 수행 */
     PSStart();  /* DP 수행  */
     flag_10mSecTimerOn = false;
   }
 
-  if (flag_1SecTimerOn == true) /* 1초 간격 처리 */
+  if (flag_1SecTimerOn) /* 1초 간격 처리 */
   {
     Check_Todo();
     flag_1SecTimerOn = false;
-  }
+  }  
 }
 
 /**
@@ -247,9 +258,6 @@ static void Check_Todo(void)
   {
     RASPI_OFF; // 1800초 동안 응답 없으면 라즈베리 전원  OFF
   }
-
-  //------------------------------ EMP 소비전력 수집
-  EMP_SaveEveragePower();
 }
 
 /**
@@ -269,6 +277,10 @@ static void setDefaultConfig(void)
   stIOConfig.Pm_Volt = 220;   /*!< 파워메터 기준진압                 초기값 220 */
   stIOConfig.Pm_Current = 50; /*!< 파워메터 기전전류  100 -> 10.0 A  초기값 50 */
   stIOConfig.Pm_Hz = 60;      /*!< 파워메터 기준주파수               초기값 60 */
+  stIOConfig.Ratio = 6;
+  stIOConfig.Volt = 220;
+  stIOConfig.Phase = 0;
+  stIOConfig.Pf = 65;
 }
 
 /**
@@ -297,6 +309,7 @@ static void Proc_RasPI(void)
       {
         memcpy(&stIOConfig, uart4Message.data, sizeof(stIOConfig));
         System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig)); // (config 변경 시만 저장하도록)
+        EMP_SetDefaultValue(stIOConfig.Ratio, stIOConfig.Volt, stIOConfig.Phase, stIOConfig.Pf);
       }
       sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
@@ -315,6 +328,9 @@ static void Proc_RasPI(void)
       break;
     case MSGCMD_CAL_WATEMETER:
       SY7T609_Cal((uint32_t)stIOConfig.Pm_Volt * 1000, (uint32_t)stIOConfig.Pm_Current * 100); /* mV, mA */
+      break;
+    case MSGCMD_CAL_WATEMETER_OFFSET:
+      SY7T609_Cal_Offset();
       break;
     case MSGCMD_REQUEST_CAL_VALUE:
       EMP_GetCalValue(txData);
@@ -374,6 +390,7 @@ static void Proc_RS232(void)
       {
         memcpy(&stIOConfig, uart1Message.data, sizeof(stIOConfig));
         System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
+        EMP_SetDefaultValue(stIOConfig.Ratio, stIOConfig.Volt, stIOConfig.Phase, stIOConfig.Pf);
       }
       sendMessageToRS232(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
@@ -441,7 +458,8 @@ static void Proc_RS232(void)
       SY7T609_WriteReg(uart1Message.data[0], (uart1Message.data[1] << 16) + (uart1Message.data[2] << 8) + uart1Message.data[3]);
       break;
     case 0xE2:
-      sendMessageToRS232(0xE2, (uint8_t *)&powerMeter, 4);
+      sendMessageToRS232(0xE2, (uint8_t *)&sensingPower, 4);
+      sendMessageToRS232(0xE4, (uint8_t *)&sumPowerMeter, 8);
       break;
     case 0xE3:
       sendMessageToRS232(0xE3, (uint8_t *)&psTemperature, 4);
@@ -467,12 +485,12 @@ static void Proc_DI(void)
   if (CT > NT)
   {
     DI_Read(stIOStatus.Di);
-    NT = CT + ((uint32_t)stIOConfig.Di_Cycle << 10U);
+    NT = CT + 1400;
   }
 }
 
 /**
- * @brief Digital Output
+ * @brief 디지털 출력 처리
  * 
  */
 static void Proc_DO(void)
@@ -496,7 +514,7 @@ static void Proc_DO(void)
     {
       DO_Write(i, stIOStatus.Do[i]);
     }
-    NT = CT + 1000;
+    NT = CT + 1450;
   }
 }
 
@@ -513,7 +531,7 @@ static void Proc_RTD(void)
   if (CT > NT)
   {
     stIOStatus.Rtd = RTD_Read(); /* 소수점 이하 추가 */
-    NT = CT + ((uint32_t)stIOConfig.Rtd_Cycle << 10U);
+    NT = CT + 1500;
   }
 }
 
@@ -530,7 +548,7 @@ static void Proc_DP(void)
   if (CT > NT)
   {
     stIOStatus.Dp = DP_Read(); /* 소수점 이하 추가 */
-    NT = CT + ((uint32_t)stIOConfig.Dp_Cycle << 10U);
+    NT = CT + 900;
   }
 }
 
@@ -548,7 +566,7 @@ static void Proc_AI(void)
   {
     stIOStatus.Ai[0] = AI_Read(0);
     stIOStatus.Ai[1] = AI_Read(1);
-    NT = CT + ((uint32_t)stIOConfig.Ai_Cycle << 10U);
+    NT = CT + 1700;
 
     if(stIOStatus.Ai[0] > 2000) LED_On(LD_AIN1); else LED_Off(LD_AIN1);
     if(stIOStatus.Ai[1] > 2000) LED_On(LD_AIN2); else LED_Off(LD_AIN2);
@@ -568,7 +586,7 @@ static void Proc_PS(void)
   if (CT > NT)
   {
     stIOStatus.Ps = PS_Read();
-    NT = CT + ((uint32_t)stIOConfig.Ps_Cycle << 10U);
+    NT = CT + 1800;
   }
 }
 

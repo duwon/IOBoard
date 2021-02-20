@@ -148,9 +148,11 @@ void RTD_Init(void)
 int16_t RTD_Read(void)
 {
   int16_t temperature = 0;
+
   temperature = rtdSum / (RTD_SENSING_AVERAGE_CNT - 1);
   rtdSum = 0;
   memset((void *)rtdValue, 0, sizeof(rtdValue));
+  LED_Off(LD_RTD);
   return temperature;
 }
 
@@ -158,25 +160,27 @@ int16_t RTD_Read(void)
  * @brief RTD 센싱
  * 
  */
-void RTDSTart(void)
+void RTDStart(void)
 {
-  static uint8_t rtdAverageCnt = 0;
+  static uint8_t Cnt = 0;
+  int16_t val;
 
   /* RTD값 합계 구하기 */
-  rtdValue[rtdAverageCnt] = (int16_t)(LMP90080_ReadRTD() * 100);
+  val = (int16_t)(LMP90080_ReadRTD() * 100);
 
-  if ((rtdValue[rtdAverageCnt] < -20000) || (rtdValue[rtdAverageCnt] > 30000)) /* -200 ~ 300 값만 정상 */
+  if ((val < -20000) || (val > 30000)) /* -200 ~ 300 값만 정상 */
   {
-    LED_Off(LD_RTD);
     return;
   }
-  LED_On(LD_RTD);
-  rtdSum += rtdValue[rtdAverageCnt++];
-  if (rtdAverageCnt >= RTD_SENSING_AVERAGE_CNT)
+
+  rtdValue[Cnt++] = val;
+  rtdSum += val;
+  if (Cnt >= RTD_SENSING_AVERAGE_CNT)
   {
-    rtdAverageCnt = 0;
+    Cnt = 0;
+    LED_On(LD_RTD);
   }
-  rtdSum -= rtdValue[rtdAverageCnt];
+  rtdSum -= rtdValue[Cnt];
 }
 
 /**

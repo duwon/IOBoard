@@ -18,6 +18,7 @@ bool flag_1SecTimerOn = false;       /*!< 1s Flag */
 bool flag_1mSecTimerOn = false;      /*!< 1ms Flag */
 bool flag_10mSecTimerOn = false;     /*!< 10ms Flag */
 bool flag_sendStatusTimerOn = false; /*< 1초 마다 상태 전송 Flag */
+bool flag_saveEveragePower = false;  /*!< 전력 센싱 Flag */
 
 /**
   * @brief  Timer 인터럽트 함수. 이 함수는 HAL_TIM_IRQHandler() 내부에서 TIM6, TIM7 인터럽트가 발생했을 때 호출됨.
@@ -28,18 +29,25 @@ bool flag_sendStatusTimerOn = false; /*< 1초 마다 상태 전송 Flag */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   static uint32_t count_sendStatus = 0U;
+  static uint32_t count_saveEMPCurrent = 0U;
 
   if (htim->Instance == TIM7) /* 10ms - AI 인터럽트 호출 용*/
   {
-	  flag_10mSecTimerOn = true;
+    flag_10mSecTimerOn = true;
   }
   else if (htim->Instance == TIM6) /* 1ms */
   {
     count_sendStatus++;
-    if (count_sendStatus > SEND_STATUS_INTERVAL)
+    count_saveEMPCurrent++;
+    if (count_sendStatus >= SEND_STATUS_INTERVAL)
     {
       flag_sendStatusTimerOn = true;
       count_sendStatus = 0U;
+    }
+    if (count_saveEMPCurrent >= 16)
+    {
+      flag_saveEveragePower = true;
+      count_saveEMPCurrent = 0U;
     }
 
     flag_1mSecTimerOn = true;

@@ -15,6 +15,7 @@
 #include "adc.h"
 #include "uart.h"
 #include "timer.h"
+#include "led.h"
 
 /** @defgroup AI AI 및 DPS 제어 함수
   * @brief Analog Input 및 차압센서를 위한 ADC 제어
@@ -48,8 +49,8 @@ uint16_t AI_Read(int8_t No)
   if (No < 2)
   {
     analogValue = AISum[No] / (AI_SENSING_AVERAGE_CNT - 1);
-    memset((void *)AiValue[No], 0, sizeof(AiValue[No]));
-    AISum[No] = 0;
+    //		memset((void *)AiValue[No], 0, sizeof(AiValue[No]));
+    //		AISum[No] = 0;
   }
   return analogValue;
 }
@@ -63,8 +64,10 @@ uint16_t DP_Read(void)
 {
   uint16_t calValue = 0U;
   calValue = (uint16_t)((float)((DPSum / (DP_SENSING_AVERAGE_CNT - 1)) - 200) * 0.224f + (float)DP_VFSS);
-  memset((void *)DpValue, 0, sizeof(DpValue));
-  DPSum = 0;
+  //	memset((void *)DpValue, 0, sizeof(DpValue));
+  //	DPSum = 0;
+  LED_Off(LD_AIN1);
+  LED_Off(LD_AIN2);
   return calValue;
 }
 
@@ -103,7 +106,8 @@ void ADCStart(void)
     float Vref = 1.2f * 4096.0f / (float)(ADCValue[3]); /* Vref 보정 값 */
     flag_ADCDone = false;
 
-    if(ADCValue[2] < DP_ADC_MINIMUM_VALUE)  ADCValue[2] = DP_ADC_MINIMUM_VALUE; 
+    if (ADCValue[2] < DP_ADC_MINIMUM_VALUE)
+      ADCValue[2] = DP_ADC_MINIMUM_VALUE;
 
     /* AI0, AI1 실크가 바뀐듯 */
     AiValue[1][AIAverageCnt] = (uint16_t)((float)(ADCValue[0]) * Vref * 1000000 / 4096.0f / 20.0f);
@@ -116,6 +120,8 @@ void ADCStart(void)
 
     if (AIAverageCnt >= AI_SENSING_AVERAGE_CNT)
     {
+      LED_On(LD_AIN1);
+      LED_On(LD_AIN2);
       AIAverageCnt = 0;
     }
     if (DPAverageCnt >= DP_SENSING_AVERAGE_CNT)

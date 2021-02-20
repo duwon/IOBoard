@@ -3,8 +3,8 @@
 
 #include "main.h"
 
-#define CAL_IGAIN 0x14BAB  /* 0x47U Default Value */
-#define CAL_VGAIN 0x20E66B /* 0x48U Default Value */
+#define CAL_IGAIN 0x3D0BA  /* 0x47U Default Value */
+#define CAL_VGAIN 0x200000 /* 0x48U Default Value */
 
 #define COMMAND_SAVETOFALSH    0 /* Save to Flash Command */
 #define COMMAND_AUTOREPORTING_CLR  1 /* Auto Reporting Command - Clear Control.ar */
@@ -19,18 +19,20 @@
 
 static const uint32_t EMP_COMMAND[10] = {0xACC200, 0xAE000, 0xAE001, 0xEC0000, 0xBD0000, 0xCA0100, 0xCA0020, 0xCA0010, 0xCA0008, 0xCA0004};
 
-extern float powerMeter;
+extern float sensingPower;
 extern uint64_t sumPowerMeter;
 
 void SY7T609_Test(void);
 uint32_t SY7T609_ReadReg(uint8_t regNum);
 void SY7T609_WriteReg(uint8_t regNum, uint32_t regData);
 void SY7T609_Cal(uint32_t VrmsTarget, uint32_t IrmsTarger);
+void SY7T609_Cal_Offset(void);
 
 void EMP_Init(void);
 void EMP_Read(float *powerValue);
 void EMP_SaveEveragePower(void);
 void EMP_UpdateCalValue(uint8_t *CalValue);
 void EMP_GetCalValue(uint8_t *RetrunCalValue);
+void EMP_SetDefaultValue(uint8_t ratio, uint8_t volt, uint8_t phase, uint8_t pf);
 
 #endif /* CURRENT_H__ */

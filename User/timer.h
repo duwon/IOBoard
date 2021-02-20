@@ -9,6 +9,7 @@ extern bool flag_1SecTimerOn;
 extern bool flag_1mSecTimerOn;
 extern bool flag_10mSecTimerOn;
 extern bool flag_sendStatusTimerOn;
+extern bool flag_saveEveragePower;
 
 void Timer_Init(void);
 void RTC_Load(void);

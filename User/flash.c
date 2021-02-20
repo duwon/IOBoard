@@ -13,6 +13,7 @@
 
 #include "flash.h"
 #include "uart.h"
+#include "led.h"
 
 #define FIRMWARE_ADDR (FLASH_APPLECATION_ADDRESS_START)
 #define UPDATE_FIRMWARE_ADDR (FLASH_FW_ADDRESS_START)
@@ -180,6 +181,7 @@ void Flash_UserWrite4Byte(uint32_t flashWriteData, uint32_t addressIndex)
 uint16_t firmNumLast = 0;
 void procFirmwareUpdate(uint8_t *firmwareData)
 {
+  static uint8_t cnt = 0;
   int error = 1;
   uint8_t eflag = 0;
   uint16_t firmNum;
@@ -189,6 +191,21 @@ void procFirmwareUpdate(uint8_t *firmwareData)
 
   if (firmNum == 0)
     firmNumLast = 0;
+
+  if (++cnt % 2)
+  {
+    LED_On(LD_DI1);
+    LED_On(LD_DI1 + 1);
+    LED_On(LD_DI1 + 2);
+    LED_On(LD_DI1 + 3);
+  }
+  else
+  {
+    LED_Off(LD_DI1);
+    LED_Off(LD_DI1 + 1);
+    LED_Off(LD_DI1 + 2);
+    LED_Off(LD_DI1 + 3);
+  }
 
   if ((firmwareData[0] & 0x80) == 0x80)
     eflag = 1;
