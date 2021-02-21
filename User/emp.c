@@ -379,7 +379,7 @@ void EMP_SaveEveragePower(void)
     {
       sumCurr += rmsCurrent[i];
     }
-    sumPowerMeter += (uint64_t)((sumCurr / 60.0f * (float)(sensingRatio * sensingVoltage) * sensingPF) / 3.75f);
+    sumPowerMeter += (uint64_t)((sumCurr / 60.0f * (float)(sensingVoltage) * sensingPF) / 3.75f);
     //sumPowerMeter += (uint64_t)((float)(EMP_GetRMSCurrent() * sensingRatio * sensingVoltage) * sensingPF / 3600.0f); /* 계산식 수정 필요 */
   }
 #endif
