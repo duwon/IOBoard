@@ -17,10 +17,15 @@ uint8_t spi3RxBuffer[10];                /*!< EMP SPI - SY7T609 수신 버퍼 */
 static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 플래그, false로 변경해야 수신 가능 */
 float powerMeter = 0;                    /*!< 현재 소비전력 W */
 uint64_t sumPowerMeter = 0;              /*!< 소비전력 mWh */
+static uint32_t sensingVoltage = 220;          /*!< 설정값 - 입력전압. V*/
+static uint32_t sensingRatio = 1;            /*!< 설정값 - 외부 CT 배율. 6~140 */
+static uint32_t sensingPhase = 0;            /*!< 설정값 - 단상 or 3상. 0 단상*/
+static float sensingPF = 0.65f;
 
 static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
 static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
 static int S24ToS32(uint32_t s24Data);
+static float EMP_GetRMSCurrent(void);
 
 /**
  * @brief EMP Register 쓰기
@@ -130,6 +135,7 @@ static int S24ToS32(uint32_t s24Data)
 
 void EMP_Read(float *powerValue)
 {
+#if 1
   powerValue[0] = (float)SY7T609_ReadReg(0x11U) / 1000.0f;           /* VRMS U24 N Scaled RMS Voltage */
   powerValue[0] = (float)SY7T609_ReadReg(0x11U) / 1000.0f;           /* VRMS U24 N Scaled RMS Voltage */
   powerValue[1] = (float)SY7T609_ReadReg(0x12U) / 10000.0f;          //128000 /* IRMS U24 N Scaled RMS Current */
@@ -142,6 +148,14 @@ void EMP_Read(float *powerValue)
   powerValue[4] = (float)S24ToS32(SY7T609_ReadReg(0x14U)) / 1000.0f; /* VAR S24 N Scaled Reactive Power */
   powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 1000.0f; /* VA S24 N Scaled Apparent Power */
   powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 1000.0f; /* VA S24 N Scaled Apparent Power */
+#else
+powerValue[0] = (float)sensingVoltage;
+powerValue[1] = EMP_GetRMSCurrent();
+powerValue[2] = sensingPF;
+powerValue[5] = powerValue[0] * powerValue[1];
+powerValue[3] = powerValue[5] * powerValue[2];
+powerValue[4] = powerValue[5] * 0.86f;
+#endif
 
   //powerValue[6] = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 20000.0f; /* avgpower S24 N Scaled Average Active Power */
   //powerValue[2] = (8388608.0f - (float)SY7T609_ReadReg(0x18U)) / 200.0f; /* PF S24 N Scaled Power Factor */
@@ -268,39 +282,88 @@ void EMP_GetCalValue(uint8_t *RetrunCalValue)
 
 void EMP_SaveEveragePower(void)
 {
-#ifdef DEBUG
-  powerMeter = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 1000.0f; /* 테스트 용 */
-#endif
-  static int cnt60sTimer = 0;
+  /**** Save calibaration data ****/
   static int cntCalDone = 0;
-
-  uint32_t everagePower = 0;
-  everagePower = SY7T609_ReadReg(0x17U);
-  everagePower = SY7T609_ReadReg(0x17U);
-  cnt60sTimer++;
-
-  sumPowerMeter += (uint64_t)(S24ToS32(everagePower) / 3600);
-
-  if (cnt60sTimer >= 60) /* 주기적(1분)으로 RTC SRAM에 소비전력 저장 */
-  {
-    RTC_SaveValue(sumPowerMeter);
-    cnt60sTimer = 0;
-  }
-
   if (flag_CalDone) /* Calibration 후 10초 뒤 Cal 값 Flash에 저장 */
   {
     cntCalDone++;
-    if (cntCalDone == 10)
+    if (cntCalDone == 600)
     {
       SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_SAVETOFALSH]);
       cntCalDone = 0;
       flag_CalDone = false;
     }
   }
+
+  /**** Cal average power ****/
+  static float rmsCurrent[60];
+  static int cntCollectCurrent = 0;
+  rmsCurrent[cntCollectCurrent] = EMP_GetRMSCurrent();
+  cntCollectCurrent++;
+
+  if(cntCollectCurrent >= 60)
+  {
+    cntCollectCurrent = 0;
+    float sumCurr = 0; 
+    for(int i=0; i<60; i++)
+    {
+      sumCurr += rmsCurrent[i];
+    }
+    sumPowerMeter += (uint64_t)((sumCurr / 60.0f * (float)(sensingVoltage) * sensingPF) / 3.75f);
+  }
+
+  /**** Save average power ****/
+  static int cnt60sTimer = 0;
+  cnt60sTimer++;
+  if (cnt60sTimer >= 3600) /* 주기적(1분)으로 RTC SRAM에 소비전력 저장 */
+  {
+    RTC_SaveValue(sumPowerMeter);
+    cnt60sTimer = 0;
+  }
+
 }
 
 void SY7T609_Cal_Offset(void)
 {
   SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_CAL_IOFFS] | EMP_COMMAND[COMNAND_CAL_VOFFS]);
   flag_CalDone = true;
+}
+
+/**
+ * @brief Return RMS Current
+ * 
+ * @return float: A
+ */
+static float EMP_GetRMSCurrent(void)
+{
+  float rmsCurrent;
+  rmsCurrent = (float)SY7T609_ReadReg(0x12U) * sensingRatio / 10000.0f;
+  rmsCurrent = (float)SY7T609_ReadReg(0x12U) * sensingRatio / 10000.0f;
+
+  return rmsCurrent; /* 전류 Offet 보정식 추가 필요 */
+}
+
+void EMP_SetDefaultValue(uint8_t ratio, uint8_t volt, uint8_t phase, uint8_t pf)
+{
+  switch(volt)
+  {
+    case 0:
+    sensingVoltage = 220;
+    break;
+    case 1:
+    sensingVoltage = 380;
+    break;
+    case 2:
+    sensingVoltage = 460;
+    break;
+    default:
+    break;
+  }
+
+  if(ratio > 0)
+  {
+    sensingRatio = ratio;
+  }
+  sensingPhase = phase;
+  sensingPF = (float)pf / 100;
 }

@@ -51,9 +51,12 @@ typedef struct
   uint16_t Pm_Volt;   /*!< 파워메터 기준진압                 초기값 220 */
   uint8_t Pm_Current; /*!< 파워메터 기준전류  100 -> 10.0 A  초기값 50 */
   uint8_t Pm_Hz;      /*!< 파워메터 기준주파수               초기값 60 */
+  uint8_t Ratio;      /*!< 외부 CT 배율    6배=(30/5) ~ 140배(700/5) */
+  uint8_t Volt;       /*!< 입력전압	   0=220, 1=380, 2=460 */
+  uint8_t Phase;      /*!< 상종류	   0=단상, 1=3상 */
+  uint8_t Pf;         /*!< Power Factor   기본 값 65 -> 0.65 */
 } Io_Config_TypeDef;
 #pragma pack(pop)
-
 typedef struct
 {
   //-------------------------------- PowerMeter
@@ -119,7 +122,8 @@ void userStart(void)
   {
     setDefaultConfig();
   }
-  //initMessage(&uart1Message, Proc_RS232); /* user1msLoop 함수에서 처리하지 않고 메시지 수신시 바로 응답 용*/
+  EMP_SetDefaultValue(stIOConfig.Ratio, stIOConfig.Volt, stIOConfig.Phase, stIOConfig.Pf); /* CT 배율, 입력전압, 상종류 설정 */
+
 }
 
 /**
@@ -130,6 +134,12 @@ void userLoop(void)
 {
   procMesssage(&uart4Message, &uart4Buffer); /* 라즈베리파이(UART4) 메시지 처리 */
   procMesssage(&uart1Message, &uart1Buffer); /* RS232(UART1) 메시지 처리 */
+
+  if (flag_saveEveragePower) /* 16ms마다 전력 센싱 */
+  {
+    EMP_SaveEveragePower();
+    flag_saveEveragePower = false;
+  }
 
   if (flag_receiveFWImage == true) /* 펌웨어 업로드 요청 시 다른 작업 수행하지 않고 메시지 처리만 */
   {
@@ -269,7 +279,12 @@ static void setDefaultConfig(void)
   stIOConfig.Pm_Volt = 220;   /*!< 파워메터 기준진압                 초기값 220 */
   stIOConfig.Pm_Current = 50; /*!< 파워메터 기전전류  100 -> 10.0 A  초기값 50 */
   stIOConfig.Pm_Hz = 60;      /*!< 파워메터 기준주파수               초기값 60 */
+  stIOConfig.Ratio = 6;
+  stIOConfig.Volt = 0;
+  stIOConfig.Phase = 0;
+  stIOConfig.Pf = 65;
 }
+
 
 /**
  * @brief 라즈베리파이 통신 메시지 처리
@@ -297,6 +312,7 @@ static void Proc_RasPI(void)
       {
         memcpy(&stIOConfig, uart4Message.data, sizeof(stIOConfig));
         System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig)); // (config 변경 시만 저장하도록)
+        EMP_SetDefaultValue(stIOConfig.Ratio, stIOConfig.Volt, stIOConfig.Phase, stIOConfig.Pf);
       }
       sendMessageToRasPi(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
@@ -377,6 +393,7 @@ static void Proc_RS232(void)
       {
         memcpy(&stIOConfig, uart1Message.data, sizeof(stIOConfig));
         System_Config_Write((uint32_t *)&stIOConfig, sizeof(stIOConfig));
+        EMP_SetDefaultValue(stIOConfig.Ratio, stIOConfig.Volt, stIOConfig.Phase, stIOConfig.Pf);
       }
       sendMessageToRS232(MSGCMD_RESPONSE_CONFIG, (uint8_t *)&stIOConfig, sizeof(stIOConfig));
       break;
