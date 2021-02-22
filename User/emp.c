@@ -18,10 +18,10 @@ static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 �
 uint64_t sumPowerMeter = 0;              /*!< 소비전력 mWh */
 static int flag_CalDone = false;         /*!< Calibration 완료 Flag */
 float sensingPower = 0;                  /*!< 측정값 - 현재 소비전력 W */
-static uint32_t sensingVoltage;          /*!< 설정값 - 입력전압. V*/
-static uint32_t sensingRatio;            /*!< 설정값 - 외부 CT 배율. 6~140 */
-static uint32_t sensingPhase;            /*!< 설정값 - 단상 or 3상. 0 단상*/
-static float sensingPF;
+static uint32_t sensingVoltage = 220;          /*!< 설정값 - 입력전압. V*/
+static uint32_t sensingRatio = 1;            /*!< 설정값 - 외부 CT 배율. 6~140 */
+static uint32_t sensingPhase = 0;            /*!< 설정값 - 단상 or 3상. 0 단상*/
+static float sensingPF = 0.65f;
 
 static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
 static uint32_t SY7T609_ReadRegSingle(uint8_t regNum);
@@ -162,8 +162,7 @@ void EMP_Read(float *powerValue)
   powerValue[5] = (float)S24ToS32(SY7T609_ReadReg(0x15U)) / 1000.0f; /* VA S24 N Scaled Apparent Power */
 #else
 powerValue[0] = (float)sensingVoltage;
-powerValue[1] = (float)SY7T609_ReadReg(0x12U) * sensingRatio / 10000.0f;          //128000 /* IRMS U24 N Scaled RMS Current */
-powerValue[1] = (float)SY7T609_ReadReg(0x12U) * sensingRatio / 10000.0f;          //128000 /* IRMS U24 N Scaled RMS Current */
+powerValue[1] = EMP_GetRMSCurrent();
 powerValue[2] = sensingPF;
 powerValue[5] = powerValue[0] * powerValue[1];
 powerValue[3] = powerValue[5] * powerValue[2];
@@ -312,7 +311,7 @@ void EMP_SetDefaultValue(uint8_t ratio, uint8_t volt, uint8_t phase, uint8_t pf)
     break;
   }
 
-  if(!sensingRatio)
+  if(ratio > 0)
   {
     sensingRatio = ratio;
   }

@@ -109,6 +109,7 @@ void userStart(void)
 #ifdef DEBUG
   printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
 #endif
+  //printf("\r\nstart.. %s %s\r\n", __DATE__, __TIME__);
   AIO_Init();   /* 내부 ADC 초기화 */
   RTC_Load();   /* RTC IC와 내부 RTC에 동기화 */
   RTD_Init();   /* RTD 센서 초기화 */
@@ -140,6 +141,7 @@ void userLoop(void)
   if (flag_saveEveragePower) /* 16ms마다 전력 센싱 */
   {
     EMP_SaveEveragePower();
+    flag_saveEveragePower = false;
   }
 
   if (flag_receiveFWImage) /* 펌웨어 업로드 요청 시 다른 작업 수행하지 않고 메시지 처리만 */
@@ -278,7 +280,7 @@ static void setDefaultConfig(void)
   stIOConfig.Pm_Current = 50; /*!< 파워메터 기전전류  100 -> 10.0 A  초기값 50 */
   stIOConfig.Pm_Hz = 60;      /*!< 파워메터 기준주파수               초기값 60 */
   stIOConfig.Ratio = 6;
-  stIOConfig.Volt = 220;
+  stIOConfig.Volt = 0;
   stIOConfig.Phase = 0;
   stIOConfig.Pf = 65;
 }
