@@ -3,7 +3,7 @@
 
 #include "main.h"
 
-#define CAL_IGAIN 0x3D0BA  /* 0x47U Default Value */
+#define CAL_IGAIN 0x200000  /* 0x47U Default Value */
 #define CAL_VGAIN 0x200000 /* 0x48U Default Value */
 
 #define COMMAND_SAVETOFALSH    0 /* Save to Flash Command */

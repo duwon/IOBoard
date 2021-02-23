@@ -18,9 +18,9 @@ static bool flag_spi3RxComplete = false; /*!< EMP SPI - SY7T609 수신 완료 �
 uint64_t sumPowerMeter = 0;              /*!< 소비전력 mWh */
 static int flag_CalDone = false;         /*!< Calibration 완료 Flag */
 float sensingPower = 0;                  /*!< 측정값 - 현재 소비전력 W */
-static uint32_t sensingVoltage = 220;          /*!< 설정값 - 입력전압. V*/
-static uint32_t sensingRatio = 1;            /*!< 설정값 - 외부 CT 배율. 6~140 */
-static uint32_t sensingPhase = 0;            /*!< 설정값 - 단상 or 3상. 0 단상*/
+static uint32_t sensingVoltage = 220;    /*!< 설정값 - 입력전압. V*/
+static uint32_t sensingRatio = 1;        /*!< 설정값 - 외부 CT 배율. 6~140 */
+static uint32_t sensingPhase = 0;        /*!< 설정값 - 단상 or 3상. 0 단상*/
 static float sensingPF = 0.65f;
 
 static void SY7T609_WriteRegSingle(uint8_t regNum, uint32_t regData);
@@ -168,12 +168,6 @@ powerValue[5] = powerValue[0] * powerValue[1];
 powerValue[3] = powerValue[5] * powerValue[2];
 powerValue[4] = powerValue[5] * 0.86f;
 #endif
-  //powerValue[6] = (float)S24ToS32(SY7T609_ReadReg(0x17U)) / 20000.0f; /* avgpower S24 N Scaled Average Active Power */
-  //powerValue[2] = (8388608.0f - (float)SY7T609_ReadReg(0x18U)) / 200.0f; /* PF S24 N Scaled Power Factor */
-  //powerValue[3] = (8388608.0f - (float)SY7T609_ReadReg(0x13U)) / 200.0f; /* Power S24 N Scaled Active Power */
-  //powerValue[4] = (8388608.0f - (float)SY7T609_ReadReg(0x14U)) / 200.0f; /* VAR S24 N Scaled Reactive Power */
-  //powerValue[5] = (8388608.0f - (float)SY7T609_ReadReg(0x15U)) / 200.0f; /* VA S24 N Scaled Apparent Power */
-  //powerValue[6] = (8388608.0f - (float)SY7T609_ReadReg(0x17U)) / 200.0f; /* avgpower S24 N Scaled Average Active Power */
 
   //SY7T609_ReadReg(0x0FU); /* VAVG S24 N Scaled Average Voltage */
   //SY7T609_ReadReg(0x10U); /* IAVG S24 N Scaled Average Current */
@@ -214,28 +208,10 @@ void EMP_Init(void)
   SY7T609_WriteReg(0x40U, 3999366); /* Bucket Register Low */
   SY7T609_WriteReg(0x41U, 723);    /* Bucket Register High */
   SY7T609_WriteReg(0x41U, 723);
-  if (SY7T609_ReadReg(0x47U) == 0x200000) /* IC 초기 값이면 */
-  {
-    SY7T609_WriteReg(0x48U, CAL_VGAIN); /* vgain - Voltage gain set. */
-    SY7T609_WriteReg(0x47U, CAL_IGAIN); /* igain - Current gain set. */
-  }
-
-  //SY7T609_WriteReg(0x47U, 0xCA95);   /* igain - Current gain set. */
-  //SY7T609_WriteReg(0x48U, 0x20f6cc);  /* vgain - Voltage gain set. */
-  //SY7T609_WriteReg(0x4FU, 62000);   /* IScale - Current scaling register. */
-  //SY7T609_WriteReg(0x50U, 667000);  /* VScale - Voltage scaling register */
-  //SY7T609_WriteReg(0x51U, 8337500);  /* PScale - Power scaling register. */
-  //SY7T609_WriteReg(0x52U, 1000);    /* PFSCALE - Power Factor scaling register. */
-  //SY7T609_WriteReg(0x53U, 1000);    /* FSCALE - Frequency scaling register.  */
-  //SY7T609_WriteReg(0x54u, 1000);    /* Temperature Scaling register. */
-  //SY7T609_WriteReg(0x5BU, 0);      /* iavgtarget U24 Y Average Current target for Calibration. 0 */
-  //SY7T609_WriteReg(0x5CU, 0);      /* vavgtarget U24 Y Average Voltage target for Calibration. 0 */
-  //SY7T609_WriteReg(0x5DU, 1);   /* irmstarget U24 Y RMS Current target for Calibration. 1,000 */
-  //SY7T609_WriteReg(0x5EU, 220000); /* vrmstarget U24 Y RMS Voltage target for Calibration. 120,000 */
-  //SY7T609_WriteReg(0x5FU, 120000); /* powertarget U24 Y Active Power target for Calibration. 120,000 */
-
-  //SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_CAL_VRMS] | EMP_COMMAND[COMMAND_CAL_IRMS]);
-  //SY7T609_WriteReg(0x00U, EMP_COMMAND[COMMAND_CAL_IRMS]);
+  SY7T609_WriteReg(0x48U, CAL_VGAIN); /* vgain - Voltage gain set. */
+  SY7T609_WriteReg(0x48U, CAL_VGAIN); /* vgain - Voltage gain set. */
+  SY7T609_WriteReg(0x47U, CAL_IGAIN); /* igain - Current gain set. */
+  SY7T609_WriteReg(0x47U, CAL_IGAIN); /* igain - Current gain set. */
 
   sumPowerMeter = RTC_LoadValue();
 
