@@ -3,6 +3,12 @@
 
 #include "main.h"
 
+
+#define	RS_232		1
+#define	RS_485		2
+#define	RS_Ras		4
+
+
 #define UART_BUFFER_SIZE 600U
 #define MESSAGE_MAX_SIZE 300U
 

@@ -3,13 +3,15 @@
 
 #include "main.h"
 
-#define SEND_STATUS_INTERVAL 5000 /*!< 상태 전송 주기. 단위 ms */
+#define SEND_STATUS_INTERVAL 50 				/*!< 상태 전송 주기. 단위 100ms */
 
 extern bool flag_1SecTimerOn;
 extern bool flag_1mSecTimerOn;
 extern bool flag_10mSecTimerOn;
 extern bool flag_sendStatusTimerOn;
 extern bool flag_saveEveragePower;
+extern uint32_t Timer_10ms_Cnt;
+extern uint32_t Timer_100ms_Cnt;
 
 void Timer_Init(void);
 void RTC_Load(void);
